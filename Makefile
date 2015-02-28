@@ -1,5 +1,9 @@
 
+all: mcp
 
-mcp: main.c
-	$(CC) -o mcp main.c
+clean:
+	rm -f mcp *.o
+
+mcp: main.o mcp_writer.o
+	$(CC) -o mcp main.o mcp_writer.o
 
