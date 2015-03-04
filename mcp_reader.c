@@ -48,11 +48,12 @@ int startReader(mcp_reader_t *mr)
             fprintf(stderr, "failed to read from %s: %s\n", mr->filename, strerror(errno));
             return(EXIT_FAILURE);
         }
-        printf("read %ld bytes\n", mr->bufBytes);
-        fflush(stdout);
+
+        if (mr->bufBytes == 0)
+            break;
 
         //  wait for the writers here
-        printf("reader is waiting for read barrier\n");
+        printf("reader read %ld bytes. now waiting for read barrier\n", mr->bufBytes);
         fflush(stdout);
         retval = pthread_barrier_wait(&mr->readBarrier);
         
@@ -69,7 +70,6 @@ int startReader(mcp_reader_t *mr)
             return(EXIT_FAILURE);
         }
            
-
         //  and here
         printf("reader is waiting for write barrier\n");
         fflush(stdout);

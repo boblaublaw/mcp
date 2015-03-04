@@ -79,7 +79,11 @@ void *startWriter(void *arg)
             fprintf(stderr, "writer %d: failed to wait for write barrier\n", self->tid);
             pthread_exit((void*) retval);
         }
-        printf ("writer %d: %sLAST to write buffer\n", self->tid, ( retval ? "" : "NOT "));
+        printf ("writer %d: %sLAST to write buffer. %s\n", 
+            self->tid, 
+            ( retval ? "" : "NOT "),
+            ( bytesRemaining ? "" : "exiting" ));                
+        fflush(stdout);
     }
 
     fclose(stream);
