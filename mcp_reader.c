@@ -15,7 +15,7 @@ int initReader(mcp_reader_t *mr, char *filename, int count)
 
     bzero(mr, sizeof(mcp_reader_t));
 
-    printf("initializing mcp to read from file %s and write to %d writers\n", filename, count);
+    //printf("initializing mcp to read from file %s and write to %d writers\n", filename, count);
 
     if (NULL == (mr->source = fopen(filename,"r"))) {
         fprintf(stderr, "Could not open %s: %s\n", filename, strerror(errno));
@@ -53,17 +53,17 @@ int startReader(mcp_reader_t *mr)
             break;
 
         //  wait for the writers here
-        printf("reader read %ld bytes. now waiting for read barrier\n", mr->bufBytes);
-        fflush(stdout);
+        //printf("reader read %ld bytes. now waiting for read barrier\n", mr->bufBytes);
+        //fflush(stdout);
         retval = pthread_barrier_wait(&mr->readBarrier);
         
         if(retval == 0) {
-            printf("reader had to wait for others\n");
-            fflush(stdout);
+            //printf("reader had to wait for others\n");
+            //fflush(stdout);
         }
         else if (retval == 1) {
-            printf("reader was the last to the party\n");
-            fflush(stdout);
+            //printf("reader was the last to the party\n");
+            //fflush(stdout);
         }
         else {
             fprintf(stderr, "Could not wait on read barrier\n");
@@ -71,16 +71,16 @@ int startReader(mcp_reader_t *mr)
         }
            
         //  and here
-        printf("reader is waiting for write barrier\n");
-        fflush(stdout);
+        //printf("reader is waiting for write barrier\n");
+        //fflush(stdout);
         retval = pthread_barrier_wait(&mr->writeBarrier);
         if(retval == 0) {
-            printf("reader had to wait for others\n");
-            fflush(stdout);
+            //printf("reader had to wait for others\n");
+            //fflush(stdout);
         }
         else if (retval == 1) {
-            printf("reader was the last to the party\n");
-            fflush(stdout);
+            //printf("reader was the last to the party\n");
+            //fflush(stdout);
         }
         else
         {
@@ -94,4 +94,3 @@ int startReader(mcp_reader_t *mr)
 }
 
 /* vim: set noet sw=5 ts=4: */
-

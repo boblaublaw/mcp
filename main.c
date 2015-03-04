@@ -69,9 +69,6 @@ int main(int argc, char **argv)
     if (-1 == initReader(&reader, argv[0], argc)) {
         exit(EXIT_FAILURE);
     }
-    else {
-        printf("success\n");
-    }
     
     argc -= 1;
     argv += 1;
@@ -103,8 +100,8 @@ int main(int argc, char **argv)
             retval = -1;
         }
         if (retval == 0) {
-            printf("Main: completed join with thread %d having a status of %ld\n",
-                writers[writerIndex].tid,(long)thread_status);
+            //printf("Main: completed join with thread %d having a status of %ld\n",
+            //    writers[writerIndex].tid,(long)thread_status);
         }
         retval = (long)thread_status;
     }

@@ -17,8 +17,8 @@ void *startWriter(void *arg)
 
     bzero(&sb,sizeof(sb));
     mcp_writer_t *self = (mcp_writer_t *)arg;
-    printf("writer %d:  launching with target %s (%ld)\n", 
-       self->tid, self->filename, self->mr->size);
+    //printf("writer %d:  launching with target %s (%ld)\n", 
+    //   self->tid, self->filename, self->mr->size);
 
     if (!self->forceOverwrite) {
         if (-1 == stat(self->filename,&sb)) {
@@ -47,20 +47,20 @@ void *startWriter(void *arg)
     bytesRemaining = (self->mr->size - self->bytesWritten);
     while (bytesRemaining) {
 
-        printf("writer %d: waiting for read barrier\n", self->tid);
-        fflush(stdout);
+        //printf("writer %d: waiting for read barrier\n", self->tid);
+        //fflush(stdout);
         retval = pthread_barrier_wait(&self->mr->readBarrier);
         if (retval == -1) {
             fprintf(stderr, "writer %d: failed to wait for read barrier\n", self->tid);
             pthread_exit((void*) retval);
         }
 
-        printf("writer %d: %sLAST %ld bytes ready.  %ld bytes remaining\n",
-            self->tid, 
-            (retval ? "" : "NOT "), 
-            self->mr->bufBytes, 
-            bytesRemaining);
-        fflush(stdout);
+        //printf("writer %d: %sLAST %ld bytes ready.  %ld bytes remaining\n",
+        //    self->tid, 
+        //    (retval ? "" : "NOT "), 
+        //    self->mr->bufBytes, 
+        //    bytesRemaining);
+        //fflush(stdout);
 
         if (self->mr->bufBytes != fwrite(self->mr->buf, 1, self->mr->bufBytes, stream)) {
             retval=-1;
@@ -70,20 +70,20 @@ void *startWriter(void *arg)
         self->bytesWritten += self->mr->bufBytes;
         bytesRemaining = (self->mr->size - self->bytesWritten);
 
-        printf("writer %d: wrote %ld bytes. %ld remaining, waiting for write barrier\n", 
-            self->tid, self->mr->bufBytes, bytesRemaining);
-        fflush(stdout);
+        //printf("writer %d: wrote %ld bytes. %ld remaining, waiting for write barrier\n", 
+        //    self->tid, self->mr->bufBytes, bytesRemaining);
+        //fflush(stdout);
 
         pthread_barrier_wait(&self->mr->writeBarrier);
         if (retval == -1) {
             fprintf(stderr, "writer %d: failed to wait for write barrier\n", self->tid);
             pthread_exit((void*) retval);
         }
-        printf ("writer %d: %sLAST to write buffer. %s\n", 
-            self->tid, 
-            ( retval ? "" : "NOT "),
-            ( bytesRemaining ? "" : "exiting" ));                
-        fflush(stdout);
+        //printf ("writer %d: %sLAST to write buffer. %s\n", 
+        //    self->tid, 
+        //    ( retval ? "" : "NOT "),
+        //    ( bytesRemaining ? "" : "exiting" ));                
+        //fflush(stdout);
     }
 
     fclose(stream);
