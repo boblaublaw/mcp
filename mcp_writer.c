@@ -18,7 +18,7 @@ void *startWriter(void *arg)
     bzero(&sb,sizeof(sb));
     mcp_writer_t *self = (mcp_writer_t *)arg;
     printf("writer thread %d launching with target %s (%ld)\n", 
-       self->tid, self->filename, self->finalSize);
+       self->tid, self->filename, self->mr->size);
 
     if (!self->forceOverwrite) {
         if (-1 == stat(self->filename,&sb)) {
@@ -44,13 +44,22 @@ void *startWriter(void *arg)
         fprintf(stderr, "Could not open %s for writing: %s\n", self->filename, strerror(errno));
     }
 
-    while (0 < (bytesRemaining = (self->finalSize - self->bytesWritten))) {
+    while (0 < (bytesRemaining = (self->mr->size - self->bytesWritten))) {
         printf ("there are %ld bytes remaining\n", bytesRemaining);
     
-        // check a condition
-        // check some global variable
-        // read some data
-
+#if 0
+        pthread_mutex_lock(&self->mr->data_mutex);
+        pthread_cond_wait(&self->mr->dataEmpty_cv, &self->mr->data_mutex);
+        pthread_mutex_unlock(&self->mr->data_mutex);
+#endif
+        self->bytesWritten += self->mr->dataBytes;
+        fwrite(self->mr->data, 1, self->mr->dataBytes, stream);
+        
+#if 0
+        pthread_mutex_lock(&self->mr->data_mutex);
+        self->mr->writerStatus = 0;
+        pthread_mutex_unlock(&self->mr->data_mutex);
+#endif
     }
 
     fclose(stream);

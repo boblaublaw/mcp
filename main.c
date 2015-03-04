@@ -80,12 +80,12 @@ int main(int argc, char **argv)
         mw->filename = strdup(argv[0]);
         mw->tid = numWriters;
         mw->forceOverwrite = forceOverwrite;
-        mw->finalSize = reader.size;
+        mw->mr = &reader;
         retval = pthread_create(&mw->thread, &attr, startWriter, 
             (void *)mw);
-        if (retval) {
+        if (retval != 0 ) {
             printf("ERROR; return code from pthread_create() is %ld\n", retval);
-            exit(EXIT_FAILURE);
+            goto exit;
         }
         argc -= 1;
         argv += 1;
@@ -96,20 +96,24 @@ int main(int argc, char **argv)
 
     // wait for all writers to exit
     for (writerIndex=0; writerIndex < numWriters; writerIndex++) {
-        retval |= pthread_join(writers[writerIndex].thread, &thread_status);
-        if (retval) {
-            printf("ERROR; return code from pthread_join() is %ld\n", retval);
-            exit(EXIT_FAILURE);
+        if (-1 == pthread_join(writers[writerIndex].thread, &thread_status)) {
+            printf("ERROR: pthread_join(): %d (%s)", errno, strerror(errno));
+            retval = -1;
         }
-        printf("Main: completed join with thread %d having a status of %ld\n",
-            writers[writerIndex].tid,(long)thread_status);
-        retval |= (long)thread_status;
+        if (retval == 0) {
+            printf("Main: completed join with thread %d having a status of %ld\n",
+                writers[writerIndex].tid,(long)thread_status);
+        }
+        retval = (long)thread_status;
     }
 
-    if (retval)
-        exit(EXIT_FAILURE);
+exit:
+    pthread_attr_destroy(&attr);
+    pthread_mutex_destroy(&reader.data_mutex);
+    pthread_cond_destroy(&reader.dataEmpty_cv);
+    pthread_cond_destroy(&reader.dataFull_cv);
 
-    exit(EXIT_SUCCESS);
+    exit(retval);
 }
 
 /* vim: set noet sw=5 ts=4: */
