@@ -3,10 +3,14 @@
 #include <string.h>     // bzero, strerrno
 #include <errno.h>      // errno
 
+
 #include "mcp.h"
 
-int createReader(mcp_reader_t *mr, char *filename)
+int initReader(mcp_reader_t *mr, char *filename)
 {
+    assert(filename);
+    assert(mr);
+
     bzero(mr, sizeof(mcp_reader_t));
     if (NULL == (mr->source = fopen(filename,"r"))) {
         fprintf(stderr, "Could not open %s: %s\n", filename, strerror(errno));
@@ -33,4 +37,5 @@ int startReader(mcp_reader_t *mr)
     return 0;
 }
 
+/* vim: set noet sw=5 ts=4: */
 

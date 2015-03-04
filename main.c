@@ -1,4 +1,4 @@
-include <stdio.h>  
+#include <stdio.h>          // printf, etc
 #include <stdlib.h>         // exit()
 #include <unistd.h>         // getopt() 
 #include <getopt.h>         // getopt()
@@ -14,36 +14,29 @@ static struct option longopts[] = {
     { NULL,                     0,                      NULL,           0 }
 };
 
+mcp_reader_t reader;
+
 void usage(long retval)
 {
     fprintf(stderr,"usage()\n");
     exit(retval);
 }
 
-int startReader(FILE *source) 
-{
-    assert(source);
-
-    fclose(source);
-
-    return 0;
-}
-
 int main(int argc, char **argv)
 {
     int                 hashFiles, 
+                        createParents,
                         forceOverwrite,
                         ch;
-    long                retval;
+    long                retval, sz;
     mcp_writer_t        writers[MCP_MAX_WRITERS];
     unsigned            numWriters, writerIndex;
     pthread_attr_t      attr;
     void                *thread_status;
-    FILE                *source;
 
     forceOverwrite = 0;
-    source=NULL;
     hashFiles = 0;
+    createParents = 0;
     numWriters = 0;
     retval = 0;
     bzero(writers, sizeof(writers));
@@ -57,9 +50,11 @@ int main(int argc, char **argv)
                 forceOverwrite = 1;
                 break;
             case 'h':
-                hashFiles = 1;
+                hashFiles = 1; // TODO
                 break;
-            // TODO -p arg to create parent directories on targets
+            case 'p':
+                createParents = 1; // TODO
+                break;
             default:
                 usage(EXIT_SUCCESS);
     }
@@ -69,20 +64,25 @@ int main(int argc, char **argv)
     if ((argc < 2) || (argc > 33))
         usage(EXIT_FAILURE);
      
-    if (NULL == (source = fopen(argv[0],"r"))) {
-        fprintf(stderr, "Could not open %s: %s\n", argv[0], strerror(errno));
+    if (-1 == initReader(&reader, argv[0])) {
         exit(EXIT_FAILURE);
     }
+    else {
+        printf("success\n");
+    }
+    
     argc -= 1;
     argv += 1;
 
     // launch all writers
     while (argc) {
-        writers[numWriters].filename = strdup(argv[0]);
-        writers[numWriters].tid = numWriters;
-        writers[numWriters].forceOverwrite = forceOverwrite;
-        retval = pthread_create(&writers[numWriters].thread, &attr, startWriter, 
-            (void *)&writers[numWriters]);
+        mcp_writer_t *mw = &writers[numWriters];
+        mw->filename = strdup(argv[0]);
+        mw->tid = numWriters;
+        mw->forceOverwrite = forceOverwrite;
+        mw->finalSize = reader.size;
+        retval = pthread_create(&mw->thread, &attr, startWriter, 
+            (void *)mw);
         if (retval) {
             printf("ERROR; return code from pthread_create() is %ld\n", retval);
             exit(EXIT_FAILURE);
@@ -92,7 +92,7 @@ int main(int argc, char **argv)
         numWriters += 1;
     }
 
-    retval = startReader(source);
+    retval = startReader(&reader);
 
     // wait for all writers to exit
     for (writerIndex=0; writerIndex < numWriters; writerIndex++) {
@@ -112,4 +112,4 @@ int main(int argc, char **argv)
     exit(EXIT_SUCCESS);
 }
 
-/* vim: set noet sw=4 ts=4: */
+/* vim: set noet sw=5 ts=4: */
