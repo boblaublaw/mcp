@@ -4,6 +4,6 @@ all: mcp
 clean:
 	rm -f mcp *.o
 
-mcp: main.o mcp_writer.o mcp_reader.o
-	$(CC) -o mcp main.o mcp_writer.o mcp_reader.o
+mcp: main.o mcp_writer.o mcp_reader.o pthread_barrier.o
+	$(CC) -lpthread -o mcp main.o mcp_writer.o mcp_reader.o pthread_barrier.o
 

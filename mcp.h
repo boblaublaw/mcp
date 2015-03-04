@@ -1,40 +1,49 @@
 #include <stdio.h>
 #include <pthread.h>
-#define PAGESIZE                4096
+
+#ifdef __APPLE__
+#include "pthread_barrier.h"
+#endif
+
+#define PAGESIZE                4096 
+#define BUFSIZE                 100 * PAGESIZE
+
+
 
 #define MCP_MAX_WRITERS         32
 
 typedef struct mcp_reader_t {
-    char            *filename;
-    long            size;
-    FILE            *source;
+    char                *filename;
+    long                size;
+    FILE                *source;
 
     // reader thread
-    pthread_t       thread;
+    pthread_t           thread;
 
     // read buffer and associated thread vars
-    unsigned char   data[PAGESIZE];
-    size_t          dataBytes;
+    unsigned char       buf[BUFSIZE];
+    size_t              bufBytes;
 
-    unsigned        writerStatus;
-    pthread_mutex_t data_mutex;
+    pthread_barrier_t   readBarrier;
+    pthread_barrier_t   writeBarrier;
+    //unsigned          writerStatus;
+    //pthread_mutex_t   data_mutex;
+    //pthread_cond_t    hasData_cv;
 
-    pthread_cond_t  dataFull_cv;
-    pthread_cond_t  dataEmpty_cv;
 } mcp_reader_t;
 
 typedef struct mcp_writer_t {
-    char            *filename;
-    pthread_t       thread;
-    unsigned        tid;
-    int             forceOverwrite;
-    mcp_reader_t    *mr;
-    long            bytesWritten;
+    char                *filename;
+    pthread_t           thread;
+    unsigned            tid;
+    int                 forceOverwrite;
+    mcp_reader_t        *mr;
+    long                bytesWritten;
 } mcp_writer_t;
 
 // function prototypes:
 void *startWriter(void *arg);
-int initReader(mcp_reader_t *, char *);
+int initReader(mcp_reader_t *, char *, int);
 int startReader(mcp_reader_t *);
 
 

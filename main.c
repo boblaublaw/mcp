@@ -64,7 +64,9 @@ int main(int argc, char **argv)
     if ((argc < 2) || (argc > 33))
         usage(EXIT_FAILURE);
      
-    if (-1 == initReader(&reader, argv[0])) {
+    // third argument is number of writers plus readers
+    // (or writers + 1 )
+    if (-1 == initReader(&reader, argv[0], argc)) {
         exit(EXIT_FAILURE);
     }
     else {
@@ -109,9 +111,8 @@ int main(int argc, char **argv)
 
 exit:
     pthread_attr_destroy(&attr);
-    pthread_mutex_destroy(&reader.data_mutex);
-    pthread_cond_destroy(&reader.dataEmpty_cv);
-    pthread_cond_destroy(&reader.dataFull_cv);
+    //pthread_mutex_destroy(&reader.data_mutex);
+    //pthread_cond_destroy(&reader.hasData_cv);
 
     exit(retval);
 }
