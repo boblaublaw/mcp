@@ -17,6 +17,23 @@ testsrc=$testdir/source
 echo creating a $size_in_mb MB test file
 dd if=/dev/zero of=$testsrc count=$size_in_kb bs=1024 2> /dev/null
 
+function verify()
+{
+    pushd $1
+    count=$2
+    
+    x=0
+    while [ $x -lt $count ]; do
+        x=$((x+1))
+        cmp source $x
+        if [ $? -ne 0 ]; then
+            echo COMPARISON FAILURE!
+            exit 1
+        fi
+    done
+    popd
+}
+
 echo copying test file to $num_writers destinations
 x=0
 w=""
@@ -29,8 +46,14 @@ time while [ $x -lt $num_writers ]; do
 done
 
 echo
-echo mcp time:
-time ./mcp -f $testsrc $w
+echo mcp1 time:
+time ./mcp1 -f $testsrc $w
+verify $testdir $num_writers
 
+echo
+echo mcp2 time:
+time ./mcp2 -f $testsrc $w
+exit 0
 rm -rf "$testdir"
+verify $testdir $num_writers
 

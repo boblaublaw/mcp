@@ -47,43 +47,42 @@ void *startWriter(void *arg)
     bytesRemaining = (self->mr->size - self->bytesWritten);
     while (bytesRemaining) {
 
-        //printf("writer %d: waiting for read barrier\n", self->tid);
-        //fflush(stdout);
-        retval = pthread_barrier_wait(&self->mr->readBarrier);
-        if (retval == -1) {
+        if (-1 == (retval = pthread_barrier_wait(&self->mr->readBarrier))) {
             fprintf(stderr, "writer %d: failed to wait for read barrier\n", self->tid);
             pthread_exit((void*) retval);
         }
 
-        //printf("writer %d: %sLAST %ld bytes ready.  %ld bytes remaining\n",
-        //    self->tid, 
-        //    (retval ? "" : "NOT "), 
-        //    self->mr->bufBytes, 
-        //    bytesRemaining);
-        //fflush(stdout);
-
-        if (self->mr->bufBytes != fwrite(self->mr->buf, 1, self->mr->bufBytes, stream)) {
+        // ========================= A BUFFER WRITE, B BUFFER READ START====================
+        
+        if (self->mr->bufBytes[BUF_A] != fwrite(self->mr->buf[BUF_A], 1, self->mr->bufBytes[BUF_A], stream)) {
             retval=-1;
             pthread_exit((void*) retval);
         }
 
-        self->bytesWritten += self->mr->bufBytes;
+        self->bytesWritten += self->mr->bufBytes[BUF_A];
         bytesRemaining = (self->mr->size - self->bytesWritten);
 
-        //printf("writer %d: wrote %ld bytes. %ld remaining, waiting for write barrier\n", 
-        //    self->tid, self->mr->bufBytes, bytesRemaining);
-        //fflush(stdout);
+        if (bytesRemaining == 0)
+            break;
 
-        pthread_barrier_wait(&self->mr->writeBarrier);
-        if (retval == -1) {
+        // ========================= A BUFFER WRITE, B BUFFER READ END======================
+
+        if (-1 == (retval == pthread_barrier_wait(&self->mr->writeBarrier))) {
             fprintf(stderr, "writer %d: failed to wait for write barrier\n", self->tid);
             pthread_exit((void*) retval);
         }
-        //printf ("writer %d: %sLAST to write buffer. %s\n", 
-        //    self->tid, 
-        //    ( retval ? "" : "NOT "),
-        //    ( bytesRemaining ? "" : "exiting" ));                
-        //fflush(stdout);
+
+        // ========================= A BUFFER READ, B BUFFER WRITE START====================
+        
+        if (self->mr->bufBytes[BUF_B] != fwrite(self->mr->buf[BUF_B], 1, self->mr->bufBytes[BUF_B], stream)) {
+            retval=-1;
+            pthread_exit((void*) retval);
+        }
+
+        self->bytesWritten += self->mr->bufBytes[BUF_B];
+        bytesRemaining = (self->mr->size - self->bytesWritten);
+        
+        // ========================= A BUFFER WRITE, B BUFFER READ END======================
     }
 
     fclose(stream);

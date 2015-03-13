@@ -7,7 +7,10 @@
 
 #define PAGESIZE                4096 
 #define BUFSIZE                 100 * PAGESIZE
+#define NUMBUF                  2
 
+#define BUF_A                   0
+#define BUF_B                   1
 
 
 #define MCP_MAX_WRITERS         32
@@ -21,14 +24,11 @@ typedef struct mcp_reader_t {
     pthread_t           thread;
 
     // read buffer and associated thread vars
-    unsigned char       buf[BUFSIZE];
-    size_t              bufBytes;
+    unsigned char       buf[BUFSIZE][NUMBUF];
+    size_t              bufBytes[NUMBUF];
 
     pthread_barrier_t   readBarrier;
     pthread_barrier_t   writeBarrier;
-    //unsigned          writerStatus;
-    //pthread_mutex_t   data_mutex;
-    //pthread_cond_t    hasData_cv;
 
 } mcp_reader_t;
 

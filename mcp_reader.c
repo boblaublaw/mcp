@@ -27,7 +27,7 @@ int initReader(mcp_reader_t *mr, char *filename, int count)
     mr->size = ftell(mr->source);
     fseek(mr->source, 0L, SEEK_SET);
 
-    // sync structures
+    // initialize sync structures
     if (0 != pthread_barrier_init(&mr->readBarrier, NULL, count))
         return -1;
     if (0 != pthread_barrier_init(&mr->writeBarrier, NULL, count))
@@ -44,17 +44,21 @@ int startReader(mcp_reader_t *mr)
     int retval = 0;
 
     while(!feof(mr->source)) {
-        if (-1 == (mr->bufBytes = fread(mr->buf, 1, PAGESIZE, mr->source))) {
+
+        // ========================= A BUFFER READ, B BUFFER WRITE START====================
+
+        if (-1 == (mr->bufBytes[BUF_A]  = fread(mr->buf[BUF_A], 1, PAGESIZE, mr->source))) {
             fprintf(stderr, "failed to read from %s: %s\n", mr->filename, strerror(errno));
             return(EXIT_FAILURE);
         }
-
-        if (mr->bufBytes == 0)
+        
+        if (mr->bufBytes[BUF_A] == 0)
             break;
 
-        //  wait for the writers here
-        //printf("reader read %ld bytes. now waiting for read barrier\n", mr->bufBytes);
-        //fflush(stdout);
+        // ========================= A BUFFER READ, B BUFFER WRITE END======================
+
+        //  make sure all the writers are done writing before we advance any further
+
         retval = pthread_barrier_wait(&mr->readBarrier);
         
         if(retval == 0) {
@@ -69,8 +73,20 @@ int startReader(mcp_reader_t *mr)
             fprintf(stderr, "Could not wait on read barrier\n");
             return(EXIT_FAILURE);
         }
-           
-        //  and here
+
+        // ========================= B BUFFER READ, A BUFFER WRITE START====================
+       
+        if (-1 == (mr->bufBytes[BUF_B]  = fread(mr->buf[BUF_B], 1, PAGESIZE, mr->source))) {
+            fprintf(stderr, "failed to read from %s: %s\n", mr->filename, strerror(errno));
+            return(EXIT_FAILURE);
+        }
+
+        if (mr->bufBytes[BUF_B] == 0)
+            break;
+
+        // ========================= B BUFFER READ, A BUFFER WRITE END======================
+
+        // here we wait for ther 
         //printf("reader is waiting for write barrier\n");
         //fflush(stdout);
         retval = pthread_barrier_wait(&mr->writeBarrier);
