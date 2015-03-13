@@ -53,7 +53,6 @@ verify $testdir $num_writers
 echo
 echo mcp2 time:
 time ./mcp2 -f $testsrc $w
-exit 0
-rm -rf "$testdir"
 verify $testdir $num_writers
+rm -rf "$testdir"
 
