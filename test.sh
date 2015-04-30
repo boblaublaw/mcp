@@ -2,7 +2,6 @@
 
 max_mb=100
 max_writers=32
-
 if [ $# -eq 2 ]; then
     size_in_mb=$1
     num_writers=$2
@@ -15,7 +14,7 @@ size_in_kb=$((size_in_mb * 1024))
 testdir=`mktemp -d ./testdir.XXXXXXX`
 testsrc=$testdir/source
 echo creating a $size_in_mb MB test file
-dd if=/dev/zero of=$testsrc count=$size_in_kb bs=1024 2> /dev/null
+time dd if=/dev/urandom of=$testsrc count=$size_in_kb bs=1024 2> /dev/null
 
 function verify()
 {
@@ -44,15 +43,21 @@ time while [ $x -lt $num_writers ]; do
     x=$((x+1))
     cp $testsrc $testdir/$x
 done
+if [ 0 -eq 1 ] ; then
+    echo
+    echo mcp1 time:
+    time ./mcp1 -f $testsrc $w
+    verify $testdir $num_writers
 
+    echo
+    echo mcp2 time:
+    time ./mcp2 -f $testsrc $w
+    verify $testdir $num_writers
+fi
 echo
-echo mcp1 time:
-time ./mcp1 -f $testsrc $w
-verify $testdir $num_writers
-
-echo
-echo mcp2 time:
-time ./mcp2 -f $testsrc $w
+echo mcp time:
+echo time ./mcp -f $testsrc $w
+time ./mcp -f $testsrc $w
 verify $testdir $num_writers
 rm -rf "$testdir"
 

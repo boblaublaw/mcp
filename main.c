@@ -91,7 +91,17 @@ int main(int argc, char **argv)
         numWriters += 1;
     }
 
-    retval = startReader(&reader);
+    if (0 != (retval = pthread_create(&reader.thread, &attr, startReader, (void *)&reader))) {
+            printf("ERROR; return code from pthread_create() is %ld\n", retval);
+            goto exit;
+    }
+
+    // wait for the reader to exit
+    if (-1 == pthread_join(reader.thread, &thread_status)) {
+        printf("ERROR: pthread_join(): %d (%s)", errno, strerror(errno));
+        retval = -1;
+        goto exit;
+    }
 
     // wait for all writers to exit
     for (writerIndex=0; writerIndex < numWriters; writerIndex++) {
@@ -108,9 +118,6 @@ int main(int argc, char **argv)
 
 exit:
     pthread_attr_destroy(&attr);
-    //pthread_mutex_destroy(&reader.data_mutex);
-    //pthread_cond_destroy(&reader.hasData_cv);
-
     exit(retval);
 }
 
