@@ -43,17 +43,7 @@ time while [ $x -lt $num_writers ]; do
     x=$((x+1))
     cp $testsrc $testdir/$x
 done
-if [ 0 -eq 1 ] ; then
-    echo
-    echo mcp1 time:
-    time ./mcp1 -f $testsrc $w
-    verify $testdir $num_writers
 
-    echo
-    echo mcp2 time:
-    time ./mcp2 -f $testsrc $w
-    verify $testdir $num_writers
-fi
 echo
 echo mcp time:
 echo time ./mcp -f $testsrc $w
