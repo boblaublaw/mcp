@@ -32,8 +32,10 @@ typedef struct mcp_reader_t {
     pthread_barrier_t   writeBarrier;
     pthread_mutex_t     debugLock;
 
-    // MD5 context
+    // MD5 
+    unsigned char       md5sum[CC_MD5_DIGEST_LENGTH];
     CC_MD5_CTX          md5state;
+    int                 hashFiles;
 } mcp_reader_t;
 
 typedef struct mcp_writer_t {
@@ -47,7 +49,7 @@ typedef struct mcp_writer_t {
 
 // function prototypes:
 void *startWriter(void *);
-int initReader(mcp_reader_t *, char *, int);
+int initReader(mcp_reader_t *, char *, int, int);
 void *startReader(void *);
 
 

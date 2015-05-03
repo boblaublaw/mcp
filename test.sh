@@ -6,8 +6,8 @@ if [ $# -eq 2 ]; then
     size_in_mb=$1
     num_writers=$2
 else
-    size_in_mb=$((RANDOM % max_mb))
-    num_writers=$((RANDOM % max_writers))
+    size_in_mb=$((((RANDOM % max_mb)) + 1 ))
+    num_writers=$((((RANDOM % max_writers)) + 1 ))
 fi
 
 size_in_kb=$((size_in_mb * 1024))
@@ -37,7 +37,9 @@ echo copying test file to $num_writers destinations
 x=0
 w=""
 echo
-echo script time:
+echo script hash time:
+time md5 $testsrc 
+echo script copy time:
 time while [ $x -lt $num_writers ]; do
     w="$w $testdir/$x"
     x=$((x+1))
@@ -46,8 +48,8 @@ done
 
 echo
 echo mcp time:
-echo time ./mcp -f $testsrc $w
+echo time ./mcp -h -f $testsrc $w
 time ./mcp -f $testsrc $w
 verify $testdir $num_writers
-rm -rf "$testdir"
+#rm -rf "$testdir"
 

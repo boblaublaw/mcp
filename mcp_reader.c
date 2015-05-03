@@ -7,7 +7,7 @@
 
 #include "mcp.h"
 
-int initReader(mcp_reader_t *mr, char *filename, int count)
+int initReader(mcp_reader_t *mr, char *filename, int count, int hashFiles)
 {
     assert(filename);
     assert(mr);
@@ -34,11 +34,12 @@ int initReader(mcp_reader_t *mr, char *filename, int count)
     if (0 != pthread_barrier_init(&mr->writeBarrier, NULL, count))
         return -1;
 
-#if 0
-    // initialize hash structure 
-    if (1 != CC_MD5_Init(&mr->md5state))
-        return -1;
-#endif
+    // initialize hashing state structure 
+    mr->hashFiles=hashFiles;
+    if (hashFiles) 
+        if (1 != CC_MD5_Init(&mr->md5state))
+            return -1;
+
     return 0;
 }
 
@@ -60,6 +61,10 @@ void *startReader(void *arg)
             retval = EXIT_FAILURE;
             pthread_exit((void*) retval);
         }
+
+        if (mr->hashFiles && mr->bufBytes[BUF_A])
+            CC_MD5_Update(&mr->md5state, mr->buf[BUF_A], mr->bufBytes[BUF_A]);
+
 #ifdef DEBUG
         pthread_mutex_lock(&mr->debugLock);
         fprintf(stderr, "%ld bytes read into buf A\n", mr->bufBytes[BUF_A]);
@@ -106,6 +111,9 @@ void *startReader(void *arg)
             pthread_exit((void*) retval);
         }
 
+        if (mr->hashFiles && mr->bufBytes[BUF_B])
+            CC_MD5_Update(&mr->md5state, mr->buf[BUF_B], mr->bufBytes[BUF_B]);
+
 #ifdef DEBUG
         pthread_mutex_lock(&mr->debugLock);
         fprintf(stderr, "%ld bytes read into buf B\n", mr->bufBytes[BUF_B]);
@@ -137,7 +145,20 @@ void *startReader(void *arg)
         }
     }
     fclose(mr->source);
+    if (mr->hashFiles) {
+        int i;
+        CC_MD5_Final(mr->md5sum, &mr->md5state);
+#ifdef DEBUG
+        fprintf(stderr, "md5 state is: ");
+        for (i=0; i<CC_MD5_DIGEST_LENGTH; i++) 
+            fprintf(stderr, "%02x", mr->md5sum[i]);
+        fprintf(stderr, "\n");
+#endif
+    }
+
     pthread_exit((void*) retval);
 }
+
+
 
 /* vim: set noet sw=5 ts=4: */

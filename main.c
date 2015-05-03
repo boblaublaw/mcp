@@ -14,7 +14,31 @@ static struct option longopts[] = {
     { NULL,                     0,                      NULL,           0 }
 };
 
+static int debugLevel;
+
 mcp_reader_t reader;
+
+int
+writeHashFile(char *basename, unsigned char *md5sum)
+{
+    char *hashFileName;
+    FILE *hashFile;
+    int i;
+    
+    if (-1 == asprintf(&hashFileName, "%s.md5", basename)) {
+        return -1;
+    }
+    // XXX should i check for existing hash files?
+    if (NULL == (hashFile = fopen (hashFileName, "w+"))) {
+        return -1;
+    }
+    for (i=0; i<CC_MD5_DIGEST_LENGTH; i++)
+        fprintf(hashFile, "%02x", md5sum[i]);
+    fprintf(hashFile, "\n");
+    fclose(hashFile);
+    return 0;
+}
+
 
 void usage(long retval)
 {
@@ -35,17 +59,21 @@ int main(int argc, char **argv)
     void                *thread_status;
 
     forceOverwrite = 0;
-    hashFiles = 0;
+    hashFiles = 0; 
     createParents = 0;
     numWriters = 0;
+    debugLevel=0;
     retval = 0;
     bzero(writers, sizeof(writers));
     pthread_attr_init(&attr);
     pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_JOINABLE);
 
     // parse arguments
-    while ((ch = getopt_long(argc, argv, "fh", longopts, NULL)) != -1)
+    while ((ch = getopt_long(argc, argv, "dfh", longopts, NULL)) != -1)
         switch (ch) {
+            case 'd':
+                debugLevel = 1;
+                break;
             case 'f':
                 forceOverwrite = 1;
                 break;
@@ -66,7 +94,7 @@ int main(int argc, char **argv)
      
     // third argument is number of writers plus readers
     // (or writers + 1 )
-    if (-1 == initReader(&reader, argv[0], argc)) {
+    if (-1 == initReader(&reader, argv[0], argc, hashFiles)) {
         exit(EXIT_FAILURE);
     }
     
@@ -114,6 +142,14 @@ int main(int argc, char **argv)
             //    writers[writerIndex].tid,(long)thread_status);
         }
         retval = (long)thread_status;
+    }
+
+    // write all the hash files, if requested
+    if (hashFiles) {
+        for (writerIndex=0; writerIndex < numWriters; writerIndex++) {
+            mcp_writer_t *mw = &writers[writerIndex];
+            writeHashFile(mw->filename, mw->mr->md5sum);
+        }
     }
 
 exit:
