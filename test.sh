@@ -51,5 +51,5 @@ echo mcp time:
 echo time ./mcp -h -f $testsrc $w
 time ./mcp -f $testsrc $w
 verify $testdir $num_writers
-#rm -rf "$testdir"
+rm -rf "$testdir"
 
