@@ -14,7 +14,7 @@ static struct option longopts[] = {
     { NULL,                     0,                      NULL,           0 }
 };
 
-static int debugLevel;
+int debugLevel;
 
 mcp_reader_t reader;
 
@@ -78,7 +78,7 @@ int main(int argc, char **argv)
                 forceOverwrite = 1;
                 break;
             case 'h':
-                hashFiles = 1; // TODO
+                hashFiles = 1;
                 break;
             case 'p':
                 createParents = 1; // TODO

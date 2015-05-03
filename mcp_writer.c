@@ -6,6 +6,8 @@
 #include <sys/stat.h>   // stat()
 #include "mcp.h"
 
+extern int debugLevel;
+
 void *startWriter(void *arg)
 {
     long                retval = 0;
@@ -45,16 +47,14 @@ void *startWriter(void *arg)
    
     bytesRemaining = (self->mr->size - self->bytesWritten);
     while (bytesRemaining) {
-#ifdef DEBUG
-        fprintf (stderr, "writer %d about to wait for readBarrier\n", self->tid);
-#endif
+        if (debugLevel)
+            fprintf (stderr, "writer %d about to wait for readBarrier\n", self->tid);
         if (-1 == (retval = pthread_barrier_wait(&self->mr->readBarrier))) {
             fprintf(stderr, "writer %d: failed to wait for read barrier\n", self->tid);
             pthread_exit((void*) retval);
         }
-#ifdef DEBUG
-        fprintf (stderr, "writer %d done waiting for readBarrier\n", self->tid);
-#endif
+        if (debugLevel) 
+            fprintf (stderr, "writer %d done waiting for readBarrier\n", self->tid);
 
         // ========================= A BUFFER WRITE, B BUFFER READ START====================
         
@@ -63,14 +63,11 @@ void *startWriter(void *arg)
             pthread_exit((void*) retval);
         }
 
-#ifdef DEBUG
-        pthread_mutex_lock(&self->mr->debugLock);
-        fprintf( stderr, "writer %d wrote \"", self->tid);
-        for (i=0; i<self->mr->bufBytes[BUF_A]; i++) 
-            fprintf( stderr, "%c", self->mr->buf[BUF_A][i]);
-        fprintf( stderr, "\" from buf A\n");
-        pthread_mutex_unlock(&self->mr->debugLock);
-#endif
+        if (debugLevel) {
+            pthread_mutex_lock(&self->mr->debugLock);
+            fprintf( stderr, "writer %d wrote %ld bytes\n", self->tid, self->mr->bufBytes[BUF_A]);
+            pthread_mutex_unlock(&self->mr->debugLock);
+        }
 
         self->bytesWritten += self->mr->bufBytes[BUF_A];
         bytesRemaining = (self->mr->size - self->bytesWritten);
@@ -92,14 +89,11 @@ void *startWriter(void *arg)
             pthread_exit((void*) retval);
         }
 
-#ifdef DEFINE
-        pthread_mutex_lock(&self->mr->debugLock);
-        fprintf( stderr, "writer %d wrote \"", self->tid);
-        for (i=0; i<self->mr->bufBytes[BUF_B]; i++) 
-            fprintf( stderr, "%c", self->mr->buf[BUF_B][i]);
-        fprintf( stderr, "\" from buf B\n");
-        pthread_mutex_unlock(&self->mr->debugLock);
-#endif
+        if (debugLevel) {
+            pthread_mutex_lock(&self->mr->debugLock);
+            fprintf( stderr, "writer %d wrote %ld bytes\n", self->tid, self->mr->bufBytes[BUF_B]);
+            pthread_mutex_unlock(&self->mr->debugLock);
+        }
 
         self->bytesWritten += self->mr->bufBytes[BUF_B];
         bytesRemaining = (self->mr->size - self->bytesWritten);
