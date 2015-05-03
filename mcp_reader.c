@@ -9,7 +9,7 @@
 
 extern int debugLevel;
 
-int initReader(mcp_reader_t *mr, char *filename, int count, int hashFiles)
+int initReader(mcp_reader_t *mr, char *filename, int threadCount, int hashFiles)
 {
     assert(filename);
     assert(mr);
@@ -18,9 +18,16 @@ int initReader(mcp_reader_t *mr, char *filename, int count, int hashFiles)
 
     pthread_mutex_init(&mr->debugLock, NULL);
 
-    //printf("initializing mcp to read from file %s and write to %d writers\n", filename, count);
+    if (debugLevel) {
+        pthread_mutex_lock(&mr->debugLock);
+        fprintf(stderr, "initializing mcp to read from file %s and write to %d writers\n", filename, threadCount - 1);
+        pthread_mutex_unlock(&mr->debugLock);
+    }
 
-    if (NULL == (mr->source = fopen(filename,"r"))) {
+    if (0 == strcmp("-",filename)) {
+        mr->source=stdin;
+    }
+    else if (NULL == (mr->source = fopen(filename,"r"))) {
         fprintf(stderr, "Could not open %s: %s\n", filename, strerror(errno));
         return -1;
     }
@@ -31,9 +38,9 @@ int initReader(mcp_reader_t *mr, char *filename, int count, int hashFiles)
     fseek(mr->source, 0L, SEEK_SET);
 
     // initialize sync structures
-    if (0 != pthread_barrier_init(&mr->readBarrier, NULL, count))
+    if (0 != pthread_barrier_init(&mr->readBarrier, NULL, threadCount))
         return -1;
-    if (0 != pthread_barrier_init(&mr->writeBarrier, NULL, count))
+    if (0 != pthread_barrier_init(&mr->writeBarrier, NULL, threadCount))
         return -1;
 
     // initialize hashing state structure 

@@ -4,9 +4,30 @@
 #include <string.h>     // strerrno
 #include <errno.h>      // errno
 #include <sys/stat.h>   // stat()
+#include <assert.h>     // assert()
 #include "mcp.h"
 
 extern int debugLevel;
+
+int
+writeHashFile(char *basename, unsigned char *md5sum)
+{
+    char *hashFileName;
+    FILE *hashFile;
+    int i;
+
+    if (-1 == asprintf(&hashFileName, "%s.md5", basename)) {
+        return -1;
+    }
+    if (NULL == (hashFile = fopen (hashFileName, "w+"))) {
+        return -1;
+    }
+    for (i=0; i<CC_MD5_DIGEST_LENGTH; i++)
+        fprintf(hashFile, "%02x", md5sum[i]);
+        fprintf(hashFile, "\n");
+        fclose(hashFile);
+    return 0;
+}
 
 void *startWriter(void *arg)
 {
@@ -16,15 +37,21 @@ void *startWriter(void *arg)
     struct stat         sb;
     int                 i=0;
 
+    assert (arg);
     bzero(&sb,sizeof(sb));
     mcp_writer_t *self = (mcp_writer_t *)arg;
-    //printf("writer %d:  launching with target %s (%ld)\n", 
-    //   self->tid, self->filename, self->mr->size);
+    if (debugLevel) {
+        pthread_mutex_lock(&self->mr->debugLock);
+        fprintf(stderr, "writer %d:  launching with target %s (size %ld)\n", 
+           self->tid, self->filename, self->mr->size);
+        pthread_mutex_unlock(&self->mr->debugLock);
+    }
 
     if (!self->forceOverwrite) {
         if (-1 == stat(self->filename,&sb)) {
             if (errno == ENOENT) {
-                // ENOENT is acceptable
+                // ENOENT is acceptable.
+                // destination file doesn't exist yet.
             }
             else {
                 // other errors are unacceptable

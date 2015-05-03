@@ -18,28 +18,6 @@ int debugLevel;
 
 mcp_reader_t reader;
 
-int
-writeHashFile(char *basename, unsigned char *md5sum)
-{
-    char *hashFileName;
-    FILE *hashFile;
-    int i;
-    
-    if (-1 == asprintf(&hashFileName, "%s.md5", basename)) {
-        return -1;
-    }
-    // XXX should i check for existing hash files?
-    if (NULL == (hashFile = fopen (hashFileName, "w+"))) {
-        return -1;
-    }
-    for (i=0; i<CC_MD5_DIGEST_LENGTH; i++)
-        fprintf(hashFile, "%02x", md5sum[i]);
-    fprintf(hashFile, "\n");
-    fclose(hashFile);
-    return 0;
-}
-
-
 void usage(long retval)
 {
     fprintf(stderr,"usage()\n");
@@ -92,8 +70,7 @@ int main(int argc, char **argv)
     if ((argc < 2) || (argc > 33))
         usage(EXIT_FAILURE);
      
-    // third argument is number of writers plus readers
-    // (or writers + 1 )
+    // at this point, argc is equal to the number of threads (writers plus readers)
     if (-1 == initReader(&reader, argv[0], argc, hashFiles)) {
         exit(EXIT_FAILURE);
     }
@@ -119,6 +96,7 @@ int main(int argc, char **argv)
         numWriters += 1;
     }
 
+    // launch reader thread
     if (0 != (retval = pthread_create(&reader.thread, &attr, startReader, (void *)&reader))) {
             printf("ERROR; return code from pthread_create() is %ld\n", retval);
             goto exit;
@@ -146,6 +124,7 @@ int main(int argc, char **argv)
 
     // write all the hash files, if requested
     if (hashFiles) {
+        
         for (writerIndex=0; writerIndex < numWriters; writerIndex++) {
             mcp_writer_t *mw = &writers[writerIndex];
             writeHashFile(mw->filename, mw->mr->md5sum);
