@@ -13,6 +13,7 @@ int initReader(mcp_reader_t *mr, char *filename, int threadCount, int hashFiles)
 {
     assert(filename);
     assert(mr);
+    int i;
 
     bzero(mr, sizeof(mcp_reader_t));
 
@@ -33,10 +34,9 @@ int initReader(mcp_reader_t *mr, char *filename, int threadCount, int hashFiles)
     }
 
     // initialize sync structures
-    if (0 != pthread_barrier_init(&mr->readBarrier, NULL, threadCount))
-        return -1;
-    if (0 != pthread_barrier_init(&mr->writeBarrier, NULL, threadCount))
-        return -1;
+    for (i=0; i<threadCount; i++)
+        if (0 != pthread_barrier_init(&mr->barrier[i], NULL, threadCount))
+            return -1;
 
     // initialize hashing state structure 
     mr->hashFiles=hashFiles;
@@ -80,13 +80,13 @@ void *startReader(void *arg)
         //  make sure all the writers are done writing before we advance any further
         if (debugLevel) {
             pthread_mutex_lock(&mr->debugLock);
-            fprintf (stderr, "reader about to wait for readBarrier\n");
+            fprintf (stderr, "reader about to wait for BUF A barrier\n");
             pthread_mutex_unlock(&mr->debugLock);
         }
-        retval = pthread_barrier_wait(&mr->readBarrier);
+        retval = pthread_barrier_wait(&mr->barrier[BUF_A]);
         if (debugLevel) {
             pthread_mutex_lock(&mr->debugLock);
-            fprintf (stderr, "reader done waiting for readBarrier\n");
+            fprintf (stderr, "reader done waiting for BUF A barrier\n");
             pthread_mutex_unlock(&mr->debugLock);
         }
         
@@ -99,7 +99,7 @@ void *startReader(void *arg)
             //fflush(stdout);
         }
         else {
-            fprintf(stderr, "Could not wait on read barrier\n");
+            fprintf(stderr, "Could not wait on BUF A barrier\n");
             retval = EXIT_FAILURE;
             pthread_exit((void*) retval);
         }
@@ -127,9 +127,9 @@ void *startReader(void *arg)
         // ========================= B BUFFER READ, A BUFFER WRITE END======================
 
         // here we wait for ther 
-        //printf("reader is waiting for write barrier\n");
+        //printf("reader is waiting for BUF B barrier\n");
         //fflush(stdout);
-        retval = pthread_barrier_wait(&mr->writeBarrier);
+        retval = pthread_barrier_wait(&mr->barrier[BUF_B]);
         if(retval == 0) {
             //printf("reader had to wait for others\n");
             //fflush(stdout);
@@ -140,7 +140,7 @@ void *startReader(void *arg)
         }
         else
         {
-            fprintf(stderr, "Could not wait on barrier\n");
+            fprintf(stderr, "Could not wait on BUF B barrier\n");
             retval = EXIT_FAILURE;
             pthread_exit((void*) retval);
         }

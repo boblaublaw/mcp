@@ -73,9 +73,9 @@ void *startWriter(void *arg)
    
     while (1) {
         if (debugLevel)
-            fprintf (stderr, "writer %d about to wait for readBarrier\n", self->tid);
-        if (-1 == (retval = pthread_barrier_wait(&self->mr->readBarrier))) {
-            fprintf(stderr, "writer %d: failed to wait for read barrier\n", self->tid);
+            fprintf (stderr, "writer %d about to wait for BUF A barrier\n", self->tid);
+        if (-1 == (retval = pthread_barrier_wait(&self->mr->barrier[BUF_A]))) {
+            fprintf(stderr, "writer %d: failed to wait for BUF A barrier\n", self->tid);
             pthread_exit((void*) retval);
         }
         if (debugLevel) 
@@ -99,8 +99,8 @@ void *startWriter(void *arg)
 
         // ========================= A BUFFER WRITE, B BUFFER READ END======================
 
-        if (-1 == (retval == pthread_barrier_wait(&self->mr->writeBarrier))) {
-            fprintf(stderr, "writer %d: failed to wait for write barrier\n", self->tid);
+        if (-1 == (retval == pthread_barrier_wait(&self->mr->barrier[BUF_B]))) {
+            fprintf(stderr, "writer %d: failed to wait for BUF B barrier\n", self->tid);
             pthread_exit((void*) retval);
         }
 
