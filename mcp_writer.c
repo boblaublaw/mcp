@@ -32,7 +32,6 @@ writeHashFile(char *basename, unsigned char *md5sum)
 void *startWriter(void *arg)
 {
     long                retval = 0;
-    long                bytesRemaining = 0;
     FILE                *stream = NULL;
     struct stat         sb;
     int                 i=0;
@@ -42,8 +41,8 @@ void *startWriter(void *arg)
     mcp_writer_t *self = (mcp_writer_t *)arg;
     if (debugLevel) {
         pthread_mutex_lock(&self->mr->debugLock);
-        fprintf(stderr, "writer %d:  launching with target %s (size %ld)\n", 
-           self->tid, self->filename, self->mr->size);
+        fprintf(stderr, "writer %d:  launching with target %s\n", 
+           self->tid, self->filename);
         pthread_mutex_unlock(&self->mr->debugLock);
     }
 
@@ -72,8 +71,7 @@ void *startWriter(void *arg)
         fprintf(stderr, "Could not open %s for writing: %s\n", self->filename, strerror(errno));
     }
    
-    bytesRemaining = (self->mr->size - self->bytesWritten);
-    while (bytesRemaining) {
+    while (1) {
         if (debugLevel)
             fprintf (stderr, "writer %d about to wait for readBarrier\n", self->tid);
         if (-1 == (retval = pthread_barrier_wait(&self->mr->readBarrier))) {
@@ -85,6 +83,9 @@ void *startWriter(void *arg)
 
         // ========================= A BUFFER WRITE, B BUFFER READ START====================
         
+        if (self->mr->bufBytes[BUF_A] == 0 )
+            break;
+
         if (self->mr->bufBytes[BUF_A] != fwrite(self->mr->buf[BUF_A], 1, self->mr->bufBytes[BUF_A], stream)) {
             retval=-1;
             pthread_exit((void*) retval);
@@ -96,12 +97,6 @@ void *startWriter(void *arg)
             pthread_mutex_unlock(&self->mr->debugLock);
         }
 
-        self->bytesWritten += self->mr->bufBytes[BUF_A];
-        bytesRemaining = (self->mr->size - self->bytesWritten);
-
-        if (bytesRemaining == 0)
-            break;
-
         // ========================= A BUFFER WRITE, B BUFFER READ END======================
 
         if (-1 == (retval == pthread_barrier_wait(&self->mr->writeBarrier))) {
@@ -111,6 +106,9 @@ void *startWriter(void *arg)
 
         // ========================= A BUFFER READ, B BUFFER WRITE START====================
         
+        if (self->mr->bufBytes[BUF_B] == 0)
+            break;
+
         if (self->mr->bufBytes[BUF_B] != fwrite(self->mr->buf[BUF_B], 1, self->mr->bufBytes[BUF_B], stream)) {
             retval=-1;
             pthread_exit((void*) retval);
@@ -122,9 +120,6 @@ void *startWriter(void *arg)
             pthread_mutex_unlock(&self->mr->debugLock);
         }
 
-        self->bytesWritten += self->mr->bufBytes[BUF_B];
-        bytesRemaining = (self->mr->size - self->bytesWritten);
-        
         // ========================= A BUFFER WRITE, B BUFFER READ END======================
     }
 

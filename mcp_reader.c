@@ -32,11 +32,6 @@ int initReader(mcp_reader_t *mr, char *filename, int threadCount, int hashFiles)
         return -1;
     }
 
-    // determine the size of the input file
-    fseek(mr->source, 0L, SEEK_END);
-    mr->size = ftell(mr->source);
-    fseek(mr->source, 0L, SEEK_SET);
-
     // initialize sync structures
     if (0 != pthread_barrier_init(&mr->readBarrier, NULL, threadCount))
         return -1;
@@ -80,9 +75,6 @@ void *startReader(void *arg)
             pthread_mutex_unlock(&mr->debugLock);
         }
 
-        if (mr->bufBytes[BUF_A] == 0)
-            break;
-
         // ========================= A BUFFER READ, B BUFFER WRITE END======================
 
         //  make sure all the writers are done writing before we advance any further
@@ -112,6 +104,9 @@ void *startReader(void *arg)
             pthread_exit((void*) retval);
         }
 
+        if (mr->bufBytes[BUF_A] == 0)
+            break;
+
         // ========================= B BUFFER READ, A BUFFER WRITE START====================
        
         if (-1 == (mr->bufBytes[BUF_B]  = fread(mr->buf[BUF_B], 1, PAGESIZE, mr->source))) {
@@ -128,9 +123,6 @@ void *startReader(void *arg)
             fprintf(stderr, "%ld bytes read into buf B\n", mr->bufBytes[BUF_B]);
             pthread_mutex_unlock(&mr->debugLock);
         }
-
-        if (mr->bufBytes[BUF_B] == 0)
-            break;
 
         // ========================= B BUFFER READ, A BUFFER WRITE END======================
 
@@ -152,7 +144,11 @@ void *startReader(void *arg)
             retval = EXIT_FAILURE;
             pthread_exit((void*) retval);
         }
+
+        if (mr->bufBytes[BUF_B] == 0)
+            break;
     }
+
     fclose(mr->source);
     if (mr->hashFiles) {
         int i;
@@ -169,7 +165,5 @@ void *startReader(void *arg)
 
     pthread_exit((void*) retval);
 }
-
-
 
 /* vim: set noet sw=5 ts=4: */

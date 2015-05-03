@@ -18,7 +18,6 @@
 
 typedef struct mcp_reader_t {
     char                *filename;
-    long                size;
     FILE                *source;
 
     // reader thread
@@ -44,7 +43,6 @@ typedef struct mcp_writer_t {
     unsigned            tid;
     int                 forceOverwrite;
     mcp_reader_t        *mr;
-    long                bytesWritten;
 } mcp_writer_t;
 
 // function prototypes:
