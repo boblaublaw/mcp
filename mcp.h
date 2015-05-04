@@ -27,6 +27,7 @@ typedef struct mcp_reader_t {
     unsigned char       buf[NUMBUF][BUFSIZE];
     size_t              bufBytes[NUMBUF];
 
+    // thread stuff
     pthread_barrier_t   barrier[2];
     pthread_mutex_t     debugLock;
 

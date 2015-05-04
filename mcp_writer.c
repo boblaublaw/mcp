@@ -7,7 +7,7 @@
 #include <assert.h>     // assert()
 #include "mcp.h"
 
-extern int debugLevel;
+extern int verbosity;
 
 int
 writeHashFile(char *basename, unsigned char *md5sum)
@@ -39,7 +39,7 @@ void *startWriter(void *arg)
     assert (arg);
     bzero(&sb,sizeof(sb));
     mcp_writer_t *self = (mcp_writer_t *)arg;
-    if (debugLevel) {
+    if (verbosity) {
         pthread_mutex_lock(&self->mr->debugLock);
         fprintf(stderr, "writer %d:  launching with target %s\n", 
            self->tid, self->filename);
@@ -56,14 +56,14 @@ void *startWriter(void *arg)
                 // other errors are unacceptable
                 retval = -1;
                 fprintf(stderr, "Failed to stat %s: %s\n", self->filename, strerror(errno));
-                pthread_exit((void*) retval);
+                goto thread_exit;
             }
         }
         else {
             // if we can stat the file, it exists and we should not overwrite it
             retval=-1;
             fprintf(stderr, "File exists (-f to force): %s\n", self->filename);
-            pthread_exit((void*) retval);
+            goto thread_exit;
         }
     }
 
@@ -72,13 +72,13 @@ void *startWriter(void *arg)
     }
    
     while (1) {
-        if (debugLevel)
+        if (verbosity)
             fprintf (stderr, "writer %d about to wait for BUF A barrier\n", self->tid);
         if (-1 == (retval = pthread_barrier_wait(&self->mr->barrier[BUF_A]))) {
             fprintf(stderr, "writer %d: failed to wait for BUF A barrier\n", self->tid);
-            pthread_exit((void*) retval);
+            goto thread_exit;
         }
-        if (debugLevel) 
+        if (verbosity) 
             fprintf (stderr, "writer %d done waiting for readBarrier\n", self->tid);
 
         // ========================= A BUFFER WRITE, B BUFFER READ START====================
@@ -88,10 +88,10 @@ void *startWriter(void *arg)
 
         if (self->mr->bufBytes[BUF_A] != fwrite(self->mr->buf[BUF_A], 1, self->mr->bufBytes[BUF_A], stream)) {
             retval=-1;
-            pthread_exit((void*) retval);
+            goto thread_exit;
         }
 
-        if (debugLevel) {
+        if (verbosity) {
             pthread_mutex_lock(&self->mr->debugLock);
             fprintf( stderr, "writer %d wrote %ld bytes\n", self->tid, self->mr->bufBytes[BUF_A]);
             pthread_mutex_unlock(&self->mr->debugLock);
@@ -101,7 +101,7 @@ void *startWriter(void *arg)
 
         if (-1 == (retval == pthread_barrier_wait(&self->mr->barrier[BUF_B]))) {
             fprintf(stderr, "writer %d: failed to wait for BUF B barrier\n", self->tid);
-            pthread_exit((void*) retval);
+            goto thread_exit;
         }
 
         // ========================= A BUFFER READ, B BUFFER WRITE START====================
@@ -111,10 +111,10 @@ void *startWriter(void *arg)
 
         if (self->mr->bufBytes[BUF_B] != fwrite(self->mr->buf[BUF_B], 1, self->mr->bufBytes[BUF_B], stream)) {
             retval=-1;
-            pthread_exit((void*) retval);
+            goto thread_exit;
         }
 
-        if (debugLevel) {
+        if (verbosity) {
             pthread_mutex_lock(&self->mr->debugLock);
             fprintf( stderr, "writer %d wrote %ld bytes\n", self->tid, self->mr->bufBytes[BUF_B]);
             pthread_mutex_unlock(&self->mr->debugLock);
@@ -123,7 +123,11 @@ void *startWriter(void *arg)
         // ========================= A BUFFER WRITE, B BUFFER READ END======================
     }
 
-    fclose(stream);
+thread_exit:
+    if (stream) {
+        fclose(stream);
+        stream=NULL;
+    }
     pthread_exit((void*) retval);
 }
 

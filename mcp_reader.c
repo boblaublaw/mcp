@@ -7,7 +7,7 @@
 
 #include "mcp.h"
 
-extern int debugLevel;
+extern int verbosity;
 
 int initReader(mcp_reader_t *mr, char *filename, int threadCount, int hashFiles)
 {
@@ -19,7 +19,7 @@ int initReader(mcp_reader_t *mr, char *filename, int threadCount, int hashFiles)
 
     pthread_mutex_init(&mr->debugLock, NULL);
 
-    if (debugLevel) {
+    if (verbosity) {
         pthread_mutex_lock(&mr->debugLock);
         fprintf(stderr, "initializing mcp to read from file %s and write to %d writers\n", filename, threadCount - 1);
         pthread_mutex_unlock(&mr->debugLock);
@@ -69,7 +69,7 @@ void *startReader(void *arg)
         if (mr->hashFiles && mr->bufBytes[BUF_A])
             CC_MD5_Update(&mr->md5state, mr->buf[BUF_A], mr->bufBytes[BUF_A]);
 
-        if (debugLevel) {
+        if (verbosity) {
             pthread_mutex_lock(&mr->debugLock);
             fprintf(stderr, "%ld bytes read into buf A\n", mr->bufBytes[BUF_A]);
             pthread_mutex_unlock(&mr->debugLock);
@@ -78,13 +78,13 @@ void *startReader(void *arg)
         // ========================= A BUFFER READ, B BUFFER WRITE END======================
 
         //  make sure all the writers are done writing before we advance any further
-        if (debugLevel) {
+        if (verbosity) {
             pthread_mutex_lock(&mr->debugLock);
             fprintf (stderr, "reader about to wait for BUF A barrier\n");
             pthread_mutex_unlock(&mr->debugLock);
         }
         retval = pthread_barrier_wait(&mr->barrier[BUF_A]);
-        if (debugLevel) {
+        if (verbosity) {
             pthread_mutex_lock(&mr->debugLock);
             fprintf (stderr, "reader done waiting for BUF A barrier\n");
             pthread_mutex_unlock(&mr->debugLock);
@@ -118,7 +118,7 @@ void *startReader(void *arg)
         if (mr->hashFiles && mr->bufBytes[BUF_B])
             CC_MD5_Update(&mr->md5state, mr->buf[BUF_B], mr->bufBytes[BUF_B]);
 
-        if (debugLevel) {
+        if (verbosity) {
             pthread_mutex_lock(&mr->debugLock);
             fprintf(stderr, "%ld bytes read into buf B\n", mr->bufBytes[BUF_B]);
             pthread_mutex_unlock(&mr->debugLock);
@@ -153,7 +153,7 @@ void *startReader(void *arg)
     if (mr->hashFiles) {
         int i;
         CC_MD5_Final(mr->md5sum, &mr->md5state);
-        if (debugLevel) {
+        if (verbosity) {
             pthread_mutex_lock(&mr->debugLock);
             fprintf(stderr, "md5 state is: ");
             for (i=0; i<CC_MD5_DIGEST_LENGTH; i++) 

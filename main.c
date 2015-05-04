@@ -14,7 +14,7 @@ static struct option longopts[] = {
     { NULL,                     0,                      NULL,           0 }
 };
 
-int debugLevel;
+int verbosity;
 
 mcp_reader_t reader;
 
@@ -40,18 +40,15 @@ int main(int argc, char **argv)
     hashFiles = 0; 
     createParents = 0;
     numWriters = 0;
-    debugLevel=0;
+    verbosity=0;
     retval = 0;
     bzero(writers, sizeof(writers));
     pthread_attr_init(&attr);
     pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_JOINABLE);
 
     // parse arguments
-    while ((ch = getopt_long(argc, argv, "dfh", longopts, NULL)) != -1)
+    while ((ch = getopt_long(argc, argv, "fhv", longopts, NULL)) != -1)
         switch (ch) {
-            case 'd':
-                debugLevel = 1;
-                break;
             case 'f':
                 forceOverwrite = 1;
                 break;
@@ -60,6 +57,9 @@ int main(int argc, char **argv)
                 break;
             case 'p':
                 createParents = 1; // TODO
+                break;
+            case 'v':
+                verbosity++;
                 break;
             default:
                 usage(EXIT_SUCCESS);
@@ -74,6 +74,9 @@ int main(int argc, char **argv)
     if (-1 == initReader(&reader, argv[0], argc, hashFiles)) {
         exit(EXIT_FAILURE);
     }
+
+    if (verbosity)
+        fprintf(stderr, "verbosity: %d\n", verbosity);
     
     argc -= 1;
     argv += 1;
