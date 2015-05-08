@@ -14,11 +14,11 @@ size_in_kb=$((size_in_mb * 1024))
 testdir=`mktemp -d ./testdir.XXXXXXX`
 testsrc=$testdir/source
 echo creating a $size_in_mb MB test file
-time dd if=/dev/urandom of=$testsrc count=$size_in_kb bs=1024 2> /dev/null
+time dd if=/dev/urandom count=$size_in_kb bs=1024 2> /dev/null | pv -s $((size_in_kb * 1024)) > $testsrc
 
 function verify()
 {
-    pushd $1
+    pushd $1 > /dev/null 2>&1
     count=$2
     
     x=0
@@ -30,7 +30,8 @@ function verify()
             exit 1
         fi
     done
-    popd
+    echo test successful.
+    popd > /dev/null 2>&1
 }
 
 echo copying test file to $num_writers destinations
@@ -48,8 +49,7 @@ done
 
 echo
 echo mcp time:
-echo time ./mcp -h -f $testsrc $w
-time ./mcp -f $testsrc $w
+cat $testsrc | pv -s `stat -f %z $testsrc` | time ./mcp -hf - $w
 verify $testdir $num_writers
 rm -rf "$testdir"
 
