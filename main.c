@@ -15,6 +15,7 @@ static struct option longopts[] = {
 };
 
 int verbosity;
+int cancel;
 
 mcp_reader_t reader;
 
@@ -41,6 +42,7 @@ int main(int argc, char **argv)
     createParents = 0;
     numWriters = 0;
     verbosity=0;
+    cancel = 0;
     retval = 0;
     bzero(writers, sizeof(writers));
     pthread_attr_init(&attr);
@@ -92,7 +94,7 @@ int main(int argc, char **argv)
             (void *)mw);
         if (retval != 0 ) {
             printf("ERROR; return code from pthread_create() is %ld\n", retval);
-            goto exit;
+            exit(EXIT_FAILURE);
         }
         argc -= 1;
         argv += 1;
@@ -101,15 +103,14 @@ int main(int argc, char **argv)
 
     // launch reader thread
     if (0 != (retval = pthread_create(&reader.thread, &attr, startReader, (void *)&reader))) {
-            printf("ERROR; return code from pthread_create() is %ld\n", retval);
-            goto exit;
+            printf("ERROR; return code from pthread_create() is %ld\n", retval);    
+        exit(EXIT_FAILURE);
     }
 
     // wait for the reader to exit
     if (-1 == pthread_join(reader.thread, &thread_status)) {
         printf("ERROR: pthread_join(): %d (%s)", errno, strerror(errno));
         retval = -1;
-        goto exit;
     }
 
     // wait for all writers to exit
@@ -126,7 +127,7 @@ int main(int argc, char **argv)
     }
 
     // write all the hash files, if requested
-    if (hashFiles) {
+    if (hashFiles && !cancel) {
         
         for (writerIndex=0; writerIndex < numWriters; writerIndex++) {
             mcp_writer_t *mw = &writers[writerIndex];
@@ -134,7 +135,6 @@ int main(int argc, char **argv)
         }
     }
 
-exit:
     pthread_attr_destroy(&attr);
     exit(retval);
 }

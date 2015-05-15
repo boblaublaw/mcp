@@ -5,6 +5,7 @@
 #ifdef __APPLE__
 #include "pthread_barrier.h"
 #endif
+#include "pthread_barrier_ext.h"
 
 #define PAGESIZE                4096
 #define BUFSIZE                 1024 * PAGESIZE

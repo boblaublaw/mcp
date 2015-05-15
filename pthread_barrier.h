@@ -23,5 +23,8 @@ int pthread_barrier_init(pthread_barrier_t *barrier, const pthread_barrierattr_t
 int pthread_barrier_destroy(pthread_barrier_t *barrier);
 int pthread_barrier_wait(pthread_barrier_t *barrier);
 
+int pthread_barrier_waitseconds(pthread_barrier_t *barrier, const int seconds);
+int pthread_barrier_timedwait(pthread_barrier_t *barrier, const struct timespec *restrict abstime);
+
 #endif // PTHREAD_BARRIER_H_
 #endif // __APPLE__

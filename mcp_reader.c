@@ -8,6 +8,7 @@
 #include "mcp.h"
 
 extern int verbosity;
+extern int cancel;
 
 int initReader(mcp_reader_t *mr, char *filename, int threadCount, int hashFiles)
 {
@@ -63,6 +64,7 @@ void *startReader(void *arg)
         if (-1 == (mr->bufBytes[BUF_A]  = fread(mr->buf[BUF_A], 1, PAGESIZE, mr->source))) {
             fprintf(stderr, "failed to read from %s: %s\n", mr->filename, strerror(errno));
             retval = EXIT_FAILURE;
+            cancel = 1;
             pthread_exit((void*) retval);
         }
 
@@ -83,28 +85,19 @@ void *startReader(void *arg)
             fprintf (stderr, "reader about to wait for BUF A barrier\n");
             pthread_mutex_unlock(&mr->debugLock);
         }
-        retval = pthread_barrier_wait(&mr->barrier[BUF_A]);
+
+        if (-1 == (retval = pthread_barrier_waitcancel(&mr->barrier[BUF_A], &cancel))) {
+            retval = EXIT_FAILURE;
+            pthread_exit((void *) retval);
+        }
+
         if (verbosity) {
             pthread_mutex_lock(&mr->debugLock);
             fprintf (stderr, "reader done waiting for BUF A barrier\n");
             pthread_mutex_unlock(&mr->debugLock);
         }
         
-        if(retval == 0) {
-            //printf("reader had to wait for others\n");
-            //fflush(stdout);
-        }
-        else if (retval == 1) {
-            //printf("reader was the last to the party\n");
-            //fflush(stdout);
-        }
-        else {
-            fprintf(stderr, "Could not wait on BUF A barrier\n");
-            retval = EXIT_FAILURE;
-            pthread_exit((void*) retval);
-        }
-
-        if (mr->bufBytes[BUF_A] == 0)
+        if ((mr->bufBytes[BUF_A] == 0) || cancel)
             break;
 
         // ========================= B BUFFER READ, A BUFFER WRITE START====================
@@ -112,6 +105,7 @@ void *startReader(void *arg)
         if (-1 == (mr->bufBytes[BUF_B]  = fread(mr->buf[BUF_B], 1, PAGESIZE, mr->source))) {
             fprintf(stderr, "failed to read from %s: %s\n", mr->filename, strerror(errno));
             retval = EXIT_FAILURE;
+            cancel = 1;
             pthread_exit((void*) retval);
         }
 
@@ -129,28 +123,24 @@ void *startReader(void *arg)
         // here we wait for ther 
         //printf("reader is waiting for BUF B barrier\n");
         //fflush(stdout);
-        retval = pthread_barrier_wait(&mr->barrier[BUF_B]);
-        if(retval == 0) {
-            //printf("reader had to wait for others\n");
-            //fflush(stdout);
-        }
-        else if (retval == 1) {
-            //printf("reader was the last to the party\n");
-            //fflush(stdout);
-        }
-        else
-        {
-            fprintf(stderr, "Could not wait on BUF B barrier\n");
+        
+        if (-1 == (retval = pthread_barrier_waitcancel(&mr->barrier[BUF_B], &cancel))) {
             retval = EXIT_FAILURE;
-            pthread_exit((void*) retval);
+            pthread_exit((void *) retval);
         }
 
-        if (mr->bufBytes[BUF_B] == 0)
+        if (verbosity) {
+            pthread_mutex_lock(&mr->debugLock);
+            fprintf (stderr, "reader done waiting for BUF B barrier\n");
+            pthread_mutex_unlock(&mr->debugLock);
+        }
+
+        if ((mr->bufBytes[BUF_B] == 0) || cancel )
             break;
     }
 
     fclose(mr->source);
-    if (mr->hashFiles) {
+    if (!cancel && mr->hashFiles) {
         int i;
         CC_MD5_Final(mr->md5sum, &mr->md5state);
         if (verbosity) {

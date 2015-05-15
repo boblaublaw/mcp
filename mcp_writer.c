@@ -8,6 +8,7 @@
 #include "mcp.h"
 
 extern int verbosity;
+extern int cancel;
 
 int
 writeHashFile(char *basename, unsigned char *md5sum)
@@ -56,6 +57,7 @@ void *startWriter(void *arg)
                 // other errors are unacceptable
                 retval = -1;
                 fprintf(stderr, "Failed to stat %s: %s\n", self->filename, strerror(errno));
+                cancel = 1;
                 goto thread_exit;
             }
         }
@@ -63,6 +65,7 @@ void *startWriter(void *arg)
             // if we can stat the file, it exists and we should not overwrite it
             retval=-1;
             fprintf(stderr, "File exists (-f to force): %s\n", self->filename);
+            cancel = 1;
             goto thread_exit;
         }
     }
@@ -74,20 +77,24 @@ void *startWriter(void *arg)
     while (1) {
         if (verbosity)
             fprintf (stderr, "writer %d about to wait for BUF A barrier\n", self->tid);
-        if (-1 == (retval = pthread_barrier_wait(&self->mr->barrier[BUF_A]))) {
+
+        if (-1 == (retval = pthread_barrier_waitcancel(&self->mr->barrier[BUF_A], &cancel))) {
             fprintf(stderr, "writer %d: failed to wait for BUF A barrier\n", self->tid);
+            cancel = 1;
             goto thread_exit;
         }
+
         if (verbosity) 
             fprintf (stderr, "writer %d done waiting for readBarrier\n", self->tid);
 
         // ========================= A BUFFER WRITE, B BUFFER READ START====================
         
-        if (self->mr->bufBytes[BUF_A] == 0 )
+        if ((self->mr->bufBytes[BUF_A] == 0 ) || cancel)
             break;
 
         if (self->mr->bufBytes[BUF_A] != fwrite(self->mr->buf[BUF_A], 1, self->mr->bufBytes[BUF_A], stream)) {
             retval=-1;
+            cancel = 1;
             goto thread_exit;
         }
 
@@ -99,18 +106,20 @@ void *startWriter(void *arg)
 
         // ========================= A BUFFER WRITE, B BUFFER READ END======================
 
-        if (-1 == (retval == pthread_barrier_wait(&self->mr->barrier[BUF_B]))) {
-            fprintf(stderr, "writer %d: failed to wait for BUF B barrier\n", self->tid);
+        if (-1 == (retval = pthread_barrier_waitcancel(&self->mr->barrier[BUF_B], &cancel))) {
+            fprintf(stderr, "writer %d: failed to wait for BUF A barrier\n", self->tid);
+            cancel = 1;
             goto thread_exit;
         }
 
         // ========================= A BUFFER READ, B BUFFER WRITE START====================
         
-        if (self->mr->bufBytes[BUF_B] == 0)
+        if ((self->mr->bufBytes[BUF_B] == 0) || cancel )
             break;
 
         if (self->mr->bufBytes[BUF_B] != fwrite(self->mr->buf[BUF_B], 1, self->mr->bufBytes[BUF_B], stream)) {
             retval=-1;
+            cancel = 1;
             goto thread_exit;
         }
 
