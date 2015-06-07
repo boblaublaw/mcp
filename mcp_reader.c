@@ -10,7 +10,7 @@
 extern int verbosity;
 extern int cancel;
 
-int initReader(mcp_reader_t *mr, char *filename, int writerCount, int hashFiles)
+int initReader(mcp_reader_t *mr, const char *filename, int writerCount, int hashFiles)
 {
     assert(filename);
     assert(mr);

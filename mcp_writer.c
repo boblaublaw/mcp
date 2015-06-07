@@ -11,7 +11,7 @@ extern int verbosity;
 extern int cancel;
 
 int
-writeHashFile(char *basename, unsigned char *md5sum)
+writeHashFile(const char *basename, unsigned char *md5sum)
 {
     char *hashFileName;
     FILE *hashFile;

@@ -48,8 +48,8 @@ typedef struct mcp_writer_t {
 
 // function prototypes:
 void *startWriter(void *);
-int initReader(mcp_reader_t *mr, char *filename, int count, int hashFiles);
+int initReader(mcp_reader_t *mr, const char *filename, int count, int hashFiles);
 void *startReader(void *);
-int writeHashFile(char *basename, unsigned char *md5sum);
+int writeHashFile(const char *basename, unsigned char *md5sum);
 
 /* vim: set noet sw=4 ts=4: */

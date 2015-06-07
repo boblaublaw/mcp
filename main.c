@@ -7,6 +7,7 @@
 #include <assert.h>         // assert
 #include <string.h>         // strerror
 #include <errno.h>          // errno
+#include <sys/stat.h>       // stat
 #include "mcp.h"            // mcp_writer_t
 
 static struct option longopts[] = {
@@ -16,6 +17,9 @@ static struct option longopts[] = {
 
 int verbosity;
 int cancel;
+int                 hashFiles, 
+                    createParents,
+                    forceOverwrite;
 
 mcp_reader_t reader;
 
@@ -29,61 +33,25 @@ void usage(long retval)
     exit(retval);
 }
 
-int main(int argc, char **argv)
+//
+void copyDirectory(const char *source, int argc, char **argv)
 {
-    char                *source;
-    int                 hashFiles, 
-                        createParents,
-                        forceOverwrite,
-                        ch;
-    long                retval, sz;
-    mcp_writer_t        writers[MCP_MAX_WRITERS];
-    unsigned            numWriters, writerIndex;
+
+}
+
+// this function does not return
+void copyFile(const char *source, int argc, char **argv) 
+{
     pthread_attr_t      attr;
     void                *thread_status;
+    long                retval;
+    unsigned            numWriters, writerIndex;
+    mcp_writer_t        writers[MCP_MAX_WRITERS];
 
-    forceOverwrite = 0;
-    hashFiles = 0; 
-    createParents = 0;
     numWriters = 0;
-    verbosity=0;
-    cancel = 0;
-    retval = 0;
     bzero(writers, sizeof(writers));
     pthread_attr_init(&attr);
     pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_JOINABLE);
-
-    // parse arguments
-    while ((ch = getopt_long(argc, argv, "fhv", longopts, NULL)) != -1)
-        switch (ch) {
-            case 'f':
-                forceOverwrite = 1;
-                break;
-            case 'h':
-                hashFiles = 1;
-                break;
-            case 'p':
-                createParents = 1; // TODO
-                break;
-            case 'v':
-                verbosity++;
-                break;
-            default:
-                usage(EXIT_SUCCESS);
-    }
-
-    if (verbosity)
-        fprintf(stderr, "verbosity: %d\n", verbosity);
-    
-    argc -= optind;
-    argv += optind;
-
-    source = argv[0];
-
-    if (verbosity) fprintf(stderr, "source: %s\n", source);
-
-    argc -= 1;
-    argv += 1;
 
     // at this point, argc is equal to the number of threads (writers plus readers)
     if (-1 == initReader(&reader, source, argc, hashFiles)) {
@@ -144,6 +112,79 @@ int main(int argc, char **argv)
 
     pthread_attr_destroy(&attr);
     exit(retval);
+}
+
+
+int main(int argc, char **argv)
+{
+    char                *source;
+    struct stat         s;
+    int                 streamCopy,
+                        ch;
+    long                retval, sz;
+
+    forceOverwrite = 0;
+    streamCopy=0;
+    hashFiles = 0; 
+    createParents = 0;
+    verbosity=0;
+    cancel = 0;
+    retval = 0;
+
+    // parse arguments
+    while ((ch = getopt_long(argc, argv, "fhv", longopts, NULL)) != -1)
+        switch (ch) {
+            case 'f':
+                forceOverwrite = 1;
+                break;
+            case 'h':
+                hashFiles = 1;
+                break;
+            case 'p':
+                createParents = 1; // TODO
+                break;
+            case 'v':
+                verbosity++;
+                break;
+            default:
+                usage(EXIT_SUCCESS);
+    }
+
+    if (verbosity)
+        fprintf(stderr, "verbosity: %d\n", verbosity);
+    
+    argc -= optind;
+    argv += optind;
+
+    source = argv[0];
+
+    argc -= 1;
+    argv += 1;
+
+    if (0 == strcmp("-",source)) {
+        if (verbosity)
+            fprintf(stderr, "source is stdin\n");
+        copyFile(source, argc, argv);
+    }
+    else if( 0 != (retval = stat(source,&s))) {
+        fprintf(stderr,"Couldn't determine file type for %s: %s\n", source, strerror(errno));
+        exit(EXIT_FAILURE);
+    }
+    else if (s.st_mode & S_IFREG) {
+        if (verbosity) 
+            fprintf(stderr, "source is a file: %s\n", source);
+        copyFile(source, argc, argv);
+    }
+    else if (s.st_mode & S_IFDIR) {
+        if (verbosity) 
+            fprintf(stderr, "source is a directory: %s\n", source);
+        copyDirectory(source, argc, argv);
+    }
+    else {
+        fprintf(stderr, "source is an unknown type: %s mode %x\n", 
+            source, s.st_mode);
+        exit(EXIT_FAILURE);
+    }
 }
 
 /* vim: set noet sw=5 ts=4: */
