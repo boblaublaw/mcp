@@ -10,11 +10,12 @@
 extern int verbosity;
 extern int cancel;
 
-int initReader(mcp_reader_t *mr, char *filename, int threadCount, int hashFiles)
+int initReader(mcp_reader_t *mr, char *filename, int writerCount, int hashFiles)
 {
     assert(filename);
     assert(mr);
     int i;
+    int threadCount = writerCount + 1;
 
     bzero(mr, sizeof(mcp_reader_t));
 
@@ -22,7 +23,7 @@ int initReader(mcp_reader_t *mr, char *filename, int threadCount, int hashFiles)
 
     if (verbosity) {
         pthread_mutex_lock(&mr->debugLock);
-        fprintf(stderr, "initializing mcp to read from file %s and write to %d writers\n", filename, threadCount - 1);
+        fprintf(stderr, "initializing mcp to read from file %s and write to %d writers\n", filename, writerCount);
         pthread_mutex_unlock(&mr->debugLock);
     }
 

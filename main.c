@@ -22,11 +22,16 @@ mcp_reader_t reader;
 void usage(long retval)
 {
     fprintf(stderr,"usage()\n");
+    fprintf(stderr,"\t-f: force overwrite destination file\n");
+    fprintf(stderr,"\t-h: create hash files for every source file\n");
+    fprintf(stderr,"\t-p: create parent directories where needed\n");
+    fprintf(stderr,"\t-v: increase verbosity (vv, vvv, etc)\n");
     exit(retval);
 }
 
 int main(int argc, char **argv)
 {
+    char                *source;
     int                 hashFiles, 
                         createParents,
                         forceOverwrite,
@@ -66,22 +71,24 @@ int main(int argc, char **argv)
             default:
                 usage(EXIT_SUCCESS);
     }
-    argc -= optind;
-    argv += optind;
-
-    if ((argc < 2) || (argc > 33))
-        usage(EXIT_FAILURE);
-     
-    // at this point, argc is equal to the number of threads (writers plus readers)
-    if (-1 == initReader(&reader, argv[0], argc, hashFiles)) {
-        exit(EXIT_FAILURE);
-    }
 
     if (verbosity)
         fprintf(stderr, "verbosity: %d\n", verbosity);
     
+    argc -= optind;
+    argv += optind;
+
+    source = argv[0];
+
+    if (verbosity) fprintf(stderr, "source: %s\n", source);
+
     argc -= 1;
     argv += 1;
+
+    // at this point, argc is equal to the number of threads (writers plus readers)
+    if (-1 == initReader(&reader, source, argc, hashFiles)) {
+        exit(EXIT_FAILURE);
+    }
 
     // launch all writers
     while (argc) {
