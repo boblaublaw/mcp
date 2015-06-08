@@ -3,8 +3,6 @@
 #include <strings.h>                // bzero
 #include <sys/time.h>               // gettimeofday
 
-extern int verbosity;
-
 // wait until barrier satisfied or an absolute time has passed
 int pthread_barrier_timedwait(pthread_barrier_t *barrier, const struct timespec *restrict abstime)
 {
@@ -55,22 +53,13 @@ int pthread_barrier_waitcancel(pthread_barrier_t *barrier, int *exitFlag)
 {
     long int retval = 0;
 
-    if (verbosity > 2) {
-        fprintf (stderr, "about to start wait loop\n");
-        fflush(stderr);
-    }
+    logDebug2("about to start wait loop\n");
 
     do {
-        if (verbosity > 2) {
-            fprintf (stderr, "wait loop start\n");
-            fflush(stderr);
-        }
+        logDebug2("wait loop start\n");
         // check on this once per second
         retval = pthread_barrier_waitseconds(barrier, 5);
-        if (verbosity > 2) {
-            fprintf (stderr, "wait over: %ld\n", retval);
-            fflush(stderr);
-        }
+        logDebug2("wait over: %ld\n", retval);
         switch (retval) {
             case PTHREAD_BARRIER_NOT_LAST:
             case PTHREAD_BARRIER_LAST:
@@ -78,30 +67,21 @@ int pthread_barrier_waitcancel(pthread_barrier_t *barrier, int *exitFlag)
                 ;;
             case ETIMEDOUT:
                 if (*exitFlag) {
-                    if (verbosity > 2) {
-                        fprintf (stderr, "thread already exitFlagled\n");
-                        fflush(stderr);
-                    }
+                    logDebug2("thread already exitFlagled\n");
                 }
                 else {
                     *exitFlag=1;
-                    if (verbosity > 2) {
-                        fprintf (stderr, "pthread barrier timed out. exitFlagling thread.\n");
-                        fflush(stderr);
-                    }
+                    logDebug2("pthread barrier timed out. exitFlagling thread.\n");
                 }
                 return retval;
                 ;;
             default:
-                fprintf (stderr, "unexpected pthread_barrier_wait error: %ld\n", retval);
+                logError("unexpected pthread_barrier_wait error: %ld\n", retval);
                 *exitFlag = 1;
                 return -1;
                 ;;
         }
-        if (verbosity > 2) {
-            fprintf (stderr, "wait loop end\n");
-            fflush(stderr);
-        }
+        logDebug2("wait loop end\n");
     } while ( (retval != PTHREAD_BARRIER_NOT_LAST) && (retval != PTHREAD_BARRIER_LAST) );
 
     // outside of this thread, we dont need to know if this was the last 

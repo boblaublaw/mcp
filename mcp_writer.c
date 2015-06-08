@@ -29,18 +29,16 @@ int _mkdir(const char *dir) {
         if(*p == '/') {
             *p = 0;
             if (-1 == (retval = mkdir(tmp, S_IRWXU))) {
-                fprintf(stderr,"Could not create directory %s: %s\n",
+                logError("Could not create directory %s: %s\n",
                     tmp, strerror(errno));
-                fflush(stderr);
                 return retval;
             }
             *p = '/';
         }
     }
     if (-1 == (retval = mkdir(tmp, S_IRWXU))) {
-        fprintf(stderr,"Could not create directory %s: %s\n",
+        logError("Could not create directory %s: %s\n",
             tmp, strerror(errno));
-        fflush(stderr);
     }
     return 0;
 }
@@ -94,13 +92,8 @@ void *startWriter(void *arg)
     assert (arg);
     mcp_writer_t *self = (mcp_writer_t *)arg;
 
-    if (verbosity) {
-        pthread_mutex_lock(&self->mr->debugLock);
-        fprintf(stderr, "\twriter %d:  launching with target %s\n", 
-           self->tid, self->filename);
-        fflush(stderr);
-        pthread_mutex_unlock(&self->mr->debugLock);
-    }
+    logDebug("\twriter %d:  launching with target %s\n", 
+       self->tid, self->filename);
 
 evaluate_destination:
     if (exists(self->filename)) {
@@ -108,44 +101,29 @@ evaluate_destination:
             // if the destination is a directory, rename the
             // destination file to be the destination directory
             // concatenated with the source file name.
-            if (verbosity) {
-                fprintf(stderr,"renaming dest file from dir: %s and dest file:%s\n",
-                        self->filename, self->mr->filename);
-                fflush(stderr);
-            }
+            logDebug("renaming dest file from dir: %s and dest file:%s\n",
+                    self->filename, self->mr->filename);
             if (-1 != (retval = asprintf(&self->filename, "%s/%s", 
                     self->filename, self->mr->filename))) {
                 goto evaluate_destination;
             }
             retval = -1;
-            fprintf(stderr, "Could not create a new destination filename\n");
-            fflush(stderr);
+            logError("Could not create a new destination filename\n");
             exitFlag = 1;
             goto thread_exit;
         }
         if (!self->forceOverwrite) {
             retval=-1;
-            fprintf(stderr, "File exists (-f to force): %s\n", self->filename);
-            fflush(stderr);
+            logError("File exists (-f to force): %s\n", self->filename);
             exitFlag = 1;
             goto thread_exit;
         }
-        if (verbosity) {
-            pthread_mutex_lock(&self->mr->debugLock);
-            fprintf(stderr, "\twriter %d: overwriting destination file %s\n",
-               self->tid, self->filename);
-            fflush(stderr);
-            pthread_mutex_unlock(&self->mr->debugLock);
-        }
+        logDebug("\twriter %d: overwriting destination file %s\n",
+           self->tid, self->filename);
     }
     else {
-        if (verbosity) {
-            pthread_mutex_lock(&self->mr->debugLock);
-            fprintf(stderr, "\twriter %d: destination file %s does not exist\n",
-               self->tid, self->filename);
-            fflush(stderr);
-            pthread_mutex_unlock(&self->mr->debugLock);
-        }
+        logDebug("\twriter %d: destination file %s does not exist\n",
+           self->tid, self->filename);
 
         // file doesn't exist, let's check the parent dir
         // unfortunately, dirname is not reentrant
@@ -156,64 +134,47 @@ evaluate_destination:
 
         if (NULL == parentDir) {
             retval = -1;
-            fprintf(stderr, "Failed to determine dirname for %s: %s\n", self->filename, strerror(errno));
-            fflush(stderr);
+            logError("Failed to determine dirname for %s: %s\n", self->filename, strerror(errno));
             exitFlag = 1;
             goto thread_exit;
         }
 
         if (!exists(parentDir)) {
             if (createParents) {
-                if (verbosity) {
-                    pthread_mutex_lock(&self->mr->debugLock);
-                    fprintf(stderr, "\twriter %d: creating missing parent dir: %s\n",
-                       self->tid, parentDir);
-                    fflush(stderr);
-                    pthread_mutex_unlock(&self->mr->debugLock);
-                }
+                logDebug("\twriter %d: creating missing parent dir: %s\n",
+                   self->tid, parentDir);
                 if (-1 == (retval = _mkdir(parentDir))) {
-                    fprintf(stderr, "Failed to create parent directory %s: %s\n", 
+                    logError("Failed to create parent directory %s: %s\n", 
                         parentDir, strerror(errno));
-                    fflush(stderr);
                     exitFlag = 1;
                     goto thread_exit;
                 }
                 if (exists(parentDir)) {
-                    if (verbosity) {
-                        pthread_mutex_lock(&self->mr->debugLock);
-                        fprintf(stderr, "\twriter %d:  created missing parent dir: %s\n",
-                           self->tid, parentDir);
-                        fflush(stderr);
-                        pthread_mutex_unlock(&self->mr->debugLock);
-                    }
+                    logDebug("\twriter %d:  created missing parent dir: %s\n",
+                       self->tid, parentDir);
                 }
                 else {
                     retval = -1;
-                    fprintf(stderr, "failed to find new parent directory %s: %s\n", 
+                    logError("failed to find new parent directory %s: %s\n", 
                         parentDir, strerror(errno));
-                    fflush(stderr);
                     exitFlag = 1;
                     goto thread_exit;
                 }
             }
             else {
                 retval = -1;
-                fprintf(stderr, "destination directory %s does not exist, -p to create parents\n",
+                logError("destination directory %s does not exist, -p to create parents\n",
                     parentDir);
-                fflush(stderr);
                 exitFlag = 1;
             }
         }
     }
 
-    if (verbosity) {
-        fprintf(stderr,"\twriter %d opening %s for writing\n", 
-            self->tid, self->filename);
-        fflush(stderr);
-    }
+    logDebug("\twriter %d opening %s for writing\n", 
+        self->tid, self->filename);
 
     if (NULL == (stream = fopen (self->filename, "w+"))) {
-        fprintf(stderr, "writer %d could not open %s for writing: %s\n", 
+        logError("writer %d could not open %s for writing: %s\n", 
             self->tid, self->filename, strerror(errno));
         retval = -1;
         exitFlag = 1;
@@ -221,18 +182,12 @@ evaluate_destination:
     }
    
     while (1) {
-        if (verbosity) {
-            pthread_mutex_lock(&self->mr->debugLock);
-            fprintf (stderr, "\twriter %d about to wait for BUF A barrier\n", self->tid);
-            fflush(stderr);
-            pthread_mutex_unlock(&self->mr->debugLock);
-        }
+        logDebug("\twriter %d about to wait for BUF A barrier\n", self->tid);
 
         if (-1 == (retval = pthread_barrier_waitcancel(&self->mr->barrier[BUF_A], &exitFlag))) {
             if (!exitFlag) {
-                fprintf(stderr, "writer %d: failed to wait for BUF A barrier: %ld\n", 
+                logDebug("writer %d: failed to wait for BUF A barrier: %ld\n", 
                     self->tid, retval);
-                fflush(stderr);
             }
             
             exitFlag = 1;
@@ -241,72 +196,44 @@ evaluate_destination:
 
         if (retval == ETIMEDOUT) {
             if (!exitFlag) {
-                fprintf(stderr, "writer %d: timed out waiting for BUF A barrier\n", self->tid);
-                fflush(stderr);
+                logDebug("writer %d: timed out waiting for BUF A barrier\n", self->tid);
             }
             exitFlag = 1;
             goto thread_exit;
         }
 
-        if (verbosity) {
-            pthread_mutex_lock(&self->mr->debugLock);
-            fprintf (stderr, "\twriter %d done waiting for BUF A barrier\n", self->tid);
-            fflush(stderr);
-            pthread_mutex_unlock(&self->mr->debugLock);
-        }
+        logDebug("\twriter %d done waiting for BUF A barrier\n", self->tid);
 
         // ========================= A BUFFER WRITE, B BUFFER READ START====================
         
         if (exitFlag) {
-            if (verbosity) {
-                pthread_mutex_lock(&self->mr->debugLock);
-                fprintf (stderr, "\twriter %d told to shut down\n", self->tid);
-                fflush(stderr);
-                pthread_mutex_unlock(&self->mr->debugLock);
-            }
+            logDebug("\twriter %d told to shut down\n", self->tid);
             break;
         }
 
         if (self->mr->bufBytes[BUF_A] == 0 ) {
-            if (verbosity) {
-                pthread_mutex_lock(&self->mr->debugLock);
-                fprintf (stderr, "\twriter %d has no more data\n", self->tid);
-                fflush(stderr);
-                pthread_mutex_unlock(&self->mr->debugLock);
-            }
+            logDebug("\twriter %d has no more data\n", self->tid);
             break;
         }
 
         if (self->mr->bufBytes[BUF_A] != fwrite(self->mr->buf[BUF_A], 1, self->mr->bufBytes[BUF_A], stream)) {
             retval=-1;
             exitFlag = 1;
-            fprintf (stderr, "writer %d failed to write %ld bytes from BUF A\n", 
+            logError("writer %d failed to write %ld bytes from BUF A\n", 
                 self->tid, self->mr->bufBytes[BUF_A]);
-            fflush(stderr);
             goto thread_exit;
         }
 
-        if (verbosity) {
-            pthread_mutex_lock(&self->mr->debugLock);
-            fprintf( stderr, "\twriter %d wrote %ld bytes from BUF A\n", self->tid, self->mr->bufBytes[BUF_A]);
-            fflush(stderr);
-            pthread_mutex_unlock(&self->mr->debugLock);
-        }
+        logDebug("\twriter %d wrote %ld bytes from BUF A\n", self->tid, self->mr->bufBytes[BUF_A]);
 
         // ========================= A BUFFER WRITE, B BUFFER READ END======================
 
-        if (verbosity) {
-            pthread_mutex_lock(&self->mr->debugLock);
-            fprintf (stderr, "\twriter %d about to wait for BUF B barrier\n", self->tid);
-            fflush(stderr);
-            pthread_mutex_unlock(&self->mr->debugLock);
-        }
+        logDebug("\twriter %d about to wait for BUF B barrier\n", self->tid);
 
         if (-1 == (retval = pthread_barrier_waitcancel(&self->mr->barrier[BUF_B], &exitFlag))) {
             if (!exitFlag) {
-                fprintf(stderr, "writer %d: failed to wait for BUF B barrier: %ld\n", 
+                logError("writer %d: failed to wait for BUF B barrier: %ld\n", 
                     self->tid, retval);
-                fflush(stderr);
             }
             
             exitFlag = 1;
@@ -314,56 +241,34 @@ evaluate_destination:
         }
 
         if (retval == ETIMEDOUT) {
-            fprintf(stderr, "writer %d: timed out waiting for BUF B barrier\n", self->tid);
-            fflush(stderr);
+            logDebug("writer %d: timed out waiting for BUF B barrier\n", self->tid);
             exitFlag = 1;
             goto thread_exit;
         }
 
-        if (verbosity) {
-            pthread_mutex_lock(&self->mr->debugLock);
-            fprintf (stderr, "\twriter %d done waiting for BUF B barrier\n", self->tid);
-            fflush(stderr);
-            pthread_mutex_unlock(&self->mr->debugLock);
-        }
+        logDebug("\twriter %d done waiting for BUF B barrier\n", self->tid);
 
         // ========================= A BUFFER READ, B BUFFER WRITE START====================
         
         if (exitFlag) {
-            if (verbosity) {
-                pthread_mutex_lock(&self->mr->debugLock);
-                fprintf (stderr, "\twriter %d told to shut down\n", self->tid);
-                fflush(stderr);
-                pthread_mutex_unlock(&self->mr->debugLock);
-            }
+            logDebug("\twriter %d told to shut down\n", self->tid);
             break;
         }
 
         if (self->mr->bufBytes[BUF_B] == 0 ) {
-            if (verbosity) {
-                pthread_mutex_lock(&self->mr->debugLock);
-                fprintf (stderr, "\twriter %d has no more data\n", self->tid);
-                fflush(stderr);
-                pthread_mutex_unlock(&self->mr->debugLock);
-            }
+            logDebug("\twriter %d has no more data\n", self->tid);
             break;
         }
 
         if (self->mr->bufBytes[BUF_B] != fwrite(self->mr->buf[BUF_B], 1, self->mr->bufBytes[BUF_B], stream)) {
-            fprintf (stderr, "writer %d failed to write %ld bytes from BUF B\n", 
+            logError("writer %d failed to write %ld bytes from BUF B\n", 
                 self->tid, self->mr->bufBytes[BUF_A]);
-            fflush(stderr);
             retval = -1;
             exitFlag = 1;
             goto thread_exit;
         }
 
-        if (verbosity) {
-            pthread_mutex_lock(&self->mr->debugLock);
-            fprintf( stderr, "\twriter %d wrote %ld bytes from BUF B\n", self->tid, self->mr->bufBytes[BUF_B]);
-            fflush(stderr);
-            pthread_mutex_unlock(&self->mr->debugLock);
-        }
+        logDebug("\twriter %d wrote %ld bytes from BUF B\n", self->tid, self->mr->bufBytes[BUF_B]);
 
         // ========================= A BUFFER WRITE, B BUFFER READ END======================
     }
@@ -377,11 +282,7 @@ thread_exit:
         free(parentDir);
         parentDir=NULL;
     }
-    if (verbosity) {
-        fprintf( stderr, "\twriter %d exiting with status %ld\n", 
-            self->tid, retval);
-        fflush(stderr);
-    }
+    logDebug("\twriter %d exiting with status %ld\n", self->tid, retval);
     pthread_exit((void*) retval);
 }
 

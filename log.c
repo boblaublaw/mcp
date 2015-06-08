@@ -3,15 +3,18 @@
 #include <sys/time.h>               // gettimeofday()
 #include <stdarg.h>                 // va_list
 #include <stdlib.h>                 // exit()
+#include <pthread.h>                // pthread_mutedx_t
 
 extern int verbosity;
 static FILE *logOutput;
+static pthread_mutex_t     debugLock;
 
 void _logMsg(int level, const char *fmt, va_list argp);
 
 void logInit(FILE *stream)
 {
     logOutput=stream;
+    pthread_mutex_init(&debugLock, NULL);
 }
 
 void logError(const char *fmt, ...)
@@ -75,7 +78,9 @@ void logMsg(int level, const char *fmt, ...)
 void _logMsg(int level, const char *fmt, va_list argp)
 {
     if (verbosity >= level) {
+        pthread_mutex_lock(&debugLock);
         vfprintf(logOutput, fmt, argp);
         fflush(logOutput);
+        pthread_mutex_unlock(&debugLock);
     }
 }
