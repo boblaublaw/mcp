@@ -22,6 +22,7 @@ int pthread_barrier_timedwait(pthread_barrier_t *barrier, const struct timespec 
     else
     {
         if (0 != (retval =  pthread_cond_timedwait(&barrier->cond, &(barrier->mutex), abstime))) {
+            pthread_cond_broadcast(&barrier->cond);
             pthread_mutex_unlock(&barrier->mutex);
             return retval;
         }
