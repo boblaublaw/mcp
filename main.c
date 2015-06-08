@@ -46,7 +46,7 @@ void copyFile(const char *source, int argc, char **argv)
 {
     pthread_attr_t      attr;
     void                *thread_status;
-    long                retval;
+    long                retval=0;
     unsigned            numWriters, writerIndex;
     mcp_writer_t        writers[MCP_MAX_WRITERS];
 
@@ -60,7 +60,7 @@ void copyFile(const char *source, int argc, char **argv)
         exit(EXIT_FAILURE);
     }
 
-    // launch all writers
+    // launch all writer threads
     while (argc) {
         mcp_writer_t *mw = &writers[numWriters];
         mw->filename = strdup(argv[0]);
@@ -80,32 +80,44 @@ void copyFile(const char *source, int argc, char **argv)
 
     // launch reader thread
     if (0 != (retval = pthread_create(&reader.thread, &attr, startReader, (void *)&reader))) {
-            printf("ERROR; return code from pthread_create() is %ld\n", retval);    
+        fprintf(stderr,"return code from pthread_create() is %ld\n", retval);    
+        fflush(stdout);
         exit(EXIT_FAILURE);
     }
 
     // wait for the reader to exit
-    if (-1 == pthread_join(reader.thread, &thread_status)) {
-        printf("ERROR: pthread_join(): %d (%s)", errno, strerror(errno));
-        retval = -1;
+    if (-1 == (retval = pthread_join(reader.thread, &thread_status))) {
+        fprintf(stderr,"failed to join reader:%s\n", strerror(errno));
+        fflush(stderr);
+        exit(EXIT_FAILURE);
     }
 
     // wait for all writers to exit
     for (writerIndex=0; writerIndex < numWriters; writerIndex++) {
-        if (-1 == pthread_join(writers[writerIndex].thread, &thread_status)) {
-            printf("ERROR: pthread_join(): %d (%s)", errno, strerror(errno));
-            retval = -1;
+        if (-1 == (retval = pthread_join(writers[writerIndex].thread, &thread_status))) {
+            fprintf(stderr,"writer %d failed to join:%s\n", 
+                writers[writerIndex].tid, strerror(errno));
+            fflush(stderr);
         }
-        if (retval == 0) {
-            //printf("Main: completed join with thread %d having a status of %ld\n",
-            //    writers[writerIndex].tid,(long)thread_status);
+        else {
+            if (verbosity) {
+                fprintf(stderr,"writer %d joined with status %ld\n", 
+                    writers[writerIndex].tid, (long)thread_status);
+                fflush(stderr);
+            }
         }
-        retval = (long)thread_status;
+        // even if the join is successful, we combine the returned
+        // statuses together to check if any of them were failures
+        retval |= (long)thread_status;
+    }
+    if (verbosity) {
+        fprintf(stderr, "Main: completed joins with final return value of %ld\n",
+            retval);
+        fflush(stderr);
     }
 
-    // write all the hash files, if requested
+    // if hash files were requested, write them now
     if (hashFiles && !cancel) {
-        
         for (writerIndex=0; writerIndex < numWriters; writerIndex++) {
             mcp_writer_t *mw = &writers[writerIndex];
             writeHashFile(mw->filename, mw->mr->md5sum);

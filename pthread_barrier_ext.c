@@ -104,5 +104,8 @@ int pthread_barrier_waitcancel(pthread_barrier_t *barrier, int *cancel)
         }
     } while ( (retval != PTHREAD_BARRIER_NOT_LAST) && (retval != PTHREAD_BARRIER_LAST) );
 
-    return retval;
+    // outside of this thread, we dont need to know if this was the last 
+    // thread to reach the barrier so we discard PTHREAD_BARRIER_NOT_LAST
+    // and PTHREAD_BARRIER_LAST.
+    return 0;
 }

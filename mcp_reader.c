@@ -218,8 +218,10 @@ void *startReader(void *arg)
         }
 
         if (retval == ETIMEDOUT) {
-            fprintf (stderr, "reader timed out on BUF B\n");
-            fflush(stderr);
+            if (!cancel) {
+                fprintf (stderr, "reader timed out on BUF B\n");
+                fflush(stderr);
+            }
             retval = EXIT_FAILURE;
             cancel=1;
             goto pthread_exit;

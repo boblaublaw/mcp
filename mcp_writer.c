@@ -111,7 +111,7 @@ evaluate_destination:
             if (verbosity) {
                 fprintf(stderr,"renaming dest file from dir: %s and dest file:%s\n",
                         self->filename, self->mr->filename);
-                fflush(stdout);
+                fflush(stderr);
             }
             if (-1 != (retval = asprintf(&self->filename, "%s/%s", 
                     self->filename, self->mr->filename))) {
@@ -230,9 +230,11 @@ evaluate_destination:
 
         if (-1 == (retval = pthread_barrier_waitcancel(&self->mr->barrier[BUF_A], &cancel))) {
             if (!cancel) {
-                fprintf(stderr, "writer %d: failed to wait for BUF A barrier\n", self->tid);
+                fprintf(stderr, "writer %d: failed to wait for BUF A barrier: %ld\n", 
+                    self->tid, retval);
                 fflush(stderr);
             }
+            
             cancel = 1;
             goto thread_exit;
         }
@@ -302,9 +304,11 @@ evaluate_destination:
 
         if (-1 == (retval = pthread_barrier_waitcancel(&self->mr->barrier[BUF_B], &cancel))) {
             if (!cancel) {
-                fprintf(stderr, "writer %d: failed to wait for BUF B barrier\n", self->tid);
+                fprintf(stderr, "writer %d: failed to wait for BUF B barrier: %ld\n", 
+                    self->tid, retval);
                 fflush(stderr);
             }
+            
             cancel = 1;
             goto thread_exit;
         }
@@ -349,7 +353,7 @@ evaluate_destination:
             fprintf (stderr, "writer %d failed to write %ld bytes from BUF B\n", 
                 self->tid, self->mr->bufBytes[BUF_A]);
             fflush(stderr);
-            retval=-1;
+            retval = -1;
             cancel = 1;
             goto thread_exit;
         }
@@ -374,7 +378,8 @@ thread_exit:
         parentDir=NULL;
     }
     if (verbosity) {
-        fprintf( stderr, "\twriter %d exiting\n", self->tid);
+        fprintf( stderr, "\twriter %d exiting with status %ld\n", 
+            self->tid, retval);
         fflush(stderr);
     }
     pthread_exit((void*) retval);
