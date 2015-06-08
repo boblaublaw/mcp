@@ -34,10 +34,11 @@ void usage(long retval)
     exit(retval);
 }
 
-//
+// this function does not return
 void copyDirectory(const char *source, int argc, char **argv)
 {
-
+    fprintf(stderr,"copying directories not yet supported\n");
+    exit(EXIT_FAILURE);
 }
 
 // this function does not return

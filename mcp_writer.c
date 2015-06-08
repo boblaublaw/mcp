@@ -93,6 +93,7 @@ void *startWriter(void *arg)
 
     assert (arg);
     mcp_writer_t *self = (mcp_writer_t *)arg;
+
     if (verbosity) {
         pthread_mutex_lock(&self->mr->debugLock);
         fprintf(stderr, "\twriter %d:  launching with target %s\n", 
@@ -101,11 +102,23 @@ void *startWriter(void *arg)
         pthread_mutex_unlock(&self->mr->debugLock);
     }
 
+evaluate_destination:
     if (exists(self->filename)) {
         if (isDir(self->filename)) {
-            // TODO append source name to destination dirname and start over
+            // if the destination is a directory, rename the
+            // destination file to be the destination directory
+            // concatenated with the source file name.
+            if (verbosity) {
+                fprintf(stderr,"renaming dest file from dir: %s and dest file:%s\n",
+                        self->filename, self->mr->filename);
+                fflush(stdout);
+            }
+            if (-1 != (retval = asprintf(&self->filename, "%s/%s", 
+                    self->filename, self->mr->filename))) {
+                goto evaluate_destination;
+            }
             retval = -1;
-            fprintf(stderr, "Unsupported! Must explicitly name destination file\n");
+            fprintf(stderr, "Could not create a new destination filename\n");
             fflush(stderr);
             cancel = 1;
             goto thread_exit;

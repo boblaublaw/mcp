@@ -18,7 +18,7 @@
 #define MCP_MAX_WRITERS         32
 
 typedef struct mcp_reader_t {
-    char                *filename;
+    const char          *filename;
     FILE                *source;
 
     // reader thread

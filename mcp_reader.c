@@ -19,6 +19,7 @@ int initReader(mcp_reader_t *mr, const char *filename, int writerCount, int hash
     int threadCount = writerCount + 1;
 
     bzero(mr, sizeof(mcp_reader_t));
+    mr->filename=filename;
 
     pthread_mutex_init(&mr->debugLock, NULL);
     pthread_mutex_init(&mr->nonReentrantLock, NULL);
