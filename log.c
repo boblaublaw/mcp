@@ -5,7 +5,7 @@
 #include <stdlib.h>                 // exit()
 #include <pthread.h>                // pthread_mutedx_t
 
-extern int verbosity;
+static int verbosity;
 static FILE *logOutput;
 static pthread_mutex_t     debugLock;
 
@@ -15,6 +15,13 @@ void logInit(FILE *stream)
 {
     logOutput=stream;
     pthread_mutex_init(&debugLock, NULL);
+    verbosity=0;
+}
+
+void logIncrementVerbosity(void)
+{
+    verbosity++;
+    logDebug("log verbosity now set to %d\n", verbosity);
 }
 
 void logError(const char *fmt, ...)

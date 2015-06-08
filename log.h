@@ -6,6 +6,7 @@
 
 void logInit(FILE *stream);
 void logMsg(int level, const char *fmt, ...);
+void logIncrementVerbosity(void);
 
 void logError(const char *fmt, ...);
 void logFatal(const char *fmt, ...);

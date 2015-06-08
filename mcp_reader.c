@@ -8,7 +8,6 @@
 
 #include "mcp.h"
 
-extern int verbosity;
 extern int exitFlag;
 
 int initReader(mcp_reader_t *mr, const char *filename, int writerCount, int hashFiles)

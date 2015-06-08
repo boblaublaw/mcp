@@ -10,7 +10,6 @@
 #include <libgen.h>     // dirname()
 #include "mcp.h"
 
-extern int verbosity;
 extern int exitFlag;
 extern int createParents;
 

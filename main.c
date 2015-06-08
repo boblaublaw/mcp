@@ -16,8 +16,7 @@ static struct option longopts[] = {
 };
 
 // global vars
-int verbosity,
-    exitFlag,
+int exitFlag,
     hashFiles, 
     createParents,
     forceOverwrite;
@@ -129,7 +128,6 @@ int main(int argc, char **argv)
     streamCopy=0;
     hashFiles = 0; 
     createParents = 0;
-    verbosity=0;
     exitFlag = 0;
     retval = 0;
 
@@ -148,14 +146,12 @@ int main(int argc, char **argv)
                 createParents = 1; 
                 break;
             case 'v':
-                verbosity++;
+                logIncrementVerbosity();
                 break;
             default:
                 usage(EXIT_SUCCESS);
     }
 
-    logDebug("verbosity: %d\n", verbosity);
-    
     argc -= optind;
     argv += optind;
 
