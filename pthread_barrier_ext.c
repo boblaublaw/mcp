@@ -1,11 +1,14 @@
 #include "mcp.h"
-#include <sys/time.h>               //gettimeofday
+#include <pthread.h>
+#include <strings.h>                // bzero
+#include <sys/time.h>               // gettimeofday
 
+extern int verbosity;
 
 // wait until barrier satisfied or an absolute time has passed
 int pthread_barrier_timedwait(pthread_barrier_t *barrier, const struct timespec *restrict abstime)
 {
-    int rv = 0;
+    int retval = 0;
 
     pthread_mutex_lock(&barrier->mutex);
     ++(barrier->count);
@@ -18,8 +21,9 @@ int pthread_barrier_timedwait(pthread_barrier_t *barrier, const struct timespec 
     }
     else
     {
-        if (0 != (rv =  pthread_cond_timedwait(&barrier->cond, &(barrier->mutex), abstime))) {
-            return rv;
+        if (0 != (retval =  pthread_cond_timedwait(&barrier->cond, &(barrier->mutex), abstime))) {
+            pthread_mutex_unlock(&barrier->mutex);
+            return retval;
         }
         pthread_mutex_unlock(&barrier->mutex);
         return 0;
@@ -31,6 +35,10 @@ int pthread_barrier_waitseconds(pthread_barrier_t *barrier, const int seconds)
 {
         struct timeval tv;
         struct timespec ts;
+
+        bzero(&tv, sizeof(tv));
+        bzero(&ts, sizeof(ts));
+
         gettimeofday(&tv, NULL);
         ts.tv_sec = tv.tv_sec + seconds;
         ts.tv_nsec = 0;
@@ -45,12 +53,23 @@ int pthread_barrier_waitseconds(pthread_barrier_t *barrier, const int seconds)
 int pthread_barrier_waitcancel(pthread_barrier_t *barrier, int *cancel)
 {
     long int retval = 0;
-    int rewait=0;
+
+    if (verbosity > 2) {
+        fprintf (stderr, "about to start wait loop\n");
+        fflush(stderr);
+    }
 
     do {
-        // currently set to 5 seconds because there is some race condition 
-        // here I do not understand.
-        retval = pthread_barrier_waitseconds(barrier, 5);
+        if (verbosity > 2) {
+            fprintf (stderr, "wait loop start\n");
+            fflush(stderr);
+        }
+        // check on this once per second
+        retval = pthread_barrier_waitseconds(barrier, 1);
+        if (verbosity > 2) {
+            fprintf (stderr, "wait over: %ld\n", retval);
+            fflush(stderr);
+        }
         switch (retval) {
             case PTHREAD_BARRIER_NOT_LAST:
             case PTHREAD_BARRIER_LAST:
@@ -58,17 +77,29 @@ int pthread_barrier_waitcancel(pthread_barrier_t *barrier, int *cancel)
                 ;;
             case ETIMEDOUT:
                 if (*cancel) {
-                    fprintf (stderr, "reader thread cancelled\n");
-                    return -1;
+                    if (verbosity > 2) {
+                        fprintf (stderr, "thread already cancelled\n");
+                        fflush(stderr);
+                    }
                 }
-                rewait++;
-                break;
+                else {
+                    *cancel=1;
+                    if (verbosity > 2) {
+                        fprintf (stderr, "pthread barrier timed out. cancelling thread.\n");
+                        fflush(stderr);
+                    }
+                }
+                return retval;
                 ;;
             default:
                 fprintf (stderr, "unexpected pthread_barrier_wait error: %ld\n", retval);
                 *cancel = 1;
                 return -1;
                 ;;
+        }
+        if (verbosity > 2) {
+            fprintf (stderr, "wait loop end\n");
+            fflush(stderr);
         }
     } while ( (retval != PTHREAD_BARRIER_NOT_LAST) && (retval != PTHREAD_BARRIER_LAST) );
 

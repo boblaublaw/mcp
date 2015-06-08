@@ -30,7 +30,10 @@ typedef struct mcp_reader_t {
 
     // thread stuff
     pthread_barrier_t   barrier[2];
+    // for debug logging to a terminal
     pthread_mutex_t     debugLock;
+    // for functions that are not reentrant
+    pthread_mutex_t     nonReentrantLock; 
 
     // MD5 
     unsigned char       md5sum[CC_MD5_DIGEST_LENGTH];

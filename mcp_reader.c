@@ -2,6 +2,7 @@
 #include <assert.h>         // assert
 #include <string.h>         // bzero, strerrno
 #include <errno.h>          // errno
+#include <fcntl.h>          // fcntl()
 #include <stdlib.h>         // EXIT_FAILURE
 #include <pthread.h>        // pthread*
 
@@ -20,10 +21,12 @@ int initReader(mcp_reader_t *mr, const char *filename, int writerCount, int hash
     bzero(mr, sizeof(mcp_reader_t));
 
     pthread_mutex_init(&mr->debugLock, NULL);
+    pthread_mutex_init(&mr->nonReentrantLock, NULL);
 
     if (verbosity) {
         pthread_mutex_lock(&mr->debugLock);
         fprintf(stderr, "initializing mcp to read from file %s and write to %d writers\n", filename, writerCount);
+        fprintf(stderr, "initializing mcp with %d total threads\n", threadCount);
         pthread_mutex_unlock(&mr->debugLock);
     }
 
@@ -36,9 +39,16 @@ int initReader(mcp_reader_t *mr, const char *filename, int writerCount, int hash
     }
 
     // initialize sync structures
-    for (i=0; i<threadCount; i++)
+    for (i=0; i < NUMBUF; i++) {
+        if (verbosity) {
+            pthread_mutex_lock(&mr->debugLock);
+            fprintf(stderr, "initializing BUF %c barrier for %d threads\n", 
+                (i ? 'B' : 'A'), threadCount);
+            pthread_mutex_unlock(&mr->debugLock);
+        }
         if (0 != pthread_barrier_init(&mr->barrier[i], NULL, threadCount))
             return -1;
+    }
 
     // initialize hashing state structure 
     mr->hashFiles=hashFiles;
@@ -58,15 +68,39 @@ void *startReader(void *arg)
     
     long retval = 0;
 
-    while(!feof(mr->source)) {
+#if 0
+    int flags;
+    flags = fcntl(fileno(mr->source), F_GETFL, 0);
+    fprintf(stderr,"flags are %x\n", flags);
+    fcntl(fileno(mr->source), F_SETFL, flags | O_NONBLOCK);
+    flags = fcntl(fileno(mr->source), F_GETFL, 0);
+    fprintf(stderr,"flags are %x\n", flags);
+#endif
+
+    while(1) {
+
+        if (verbosity) {
+            pthread_mutex_lock(&mr->debugLock);
+            fprintf (stderr, "reader reached loop begin\n");
+            fflush(stderr);
+            pthread_mutex_unlock(&mr->debugLock);
+        }
 
         // ========================= A BUFFER READ, B BUFFER WRITE START====================
 
+        if (verbosity) {
+            pthread_mutex_lock(&mr->debugLock);
+            fprintf(stderr, "reader about to read into BUF A\n");
+            fflush(stderr);
+            pthread_mutex_unlock(&mr->debugLock);
+        }
+
         if (-1 == (mr->bufBytes[BUF_A]  = fread(mr->buf[BUF_A], 1, PAGESIZE, mr->source))) {
             fprintf(stderr, "failed to read from %s: %s\n", mr->filename, strerror(errno));
+            fflush(stderr);
             retval = EXIT_FAILURE;
             cancel = 1;
-            pthread_exit((void*) retval);
+            goto pthread_exit;
         }
 
         if (mr->hashFiles && mr->bufBytes[BUF_A])
@@ -74,7 +108,8 @@ void *startReader(void *arg)
 
         if (verbosity) {
             pthread_mutex_lock(&mr->debugLock);
-            fprintf(stderr, "%ld bytes read into buf A\n", mr->bufBytes[BUF_A]);
+            fprintf(stderr, "reader read %ld bytes into BUF A\n", mr->bufBytes[BUF_A]);
+            fflush(stderr);
             pthread_mutex_unlock(&mr->debugLock);
         }
 
@@ -84,30 +119,72 @@ void *startReader(void *arg)
         if (verbosity) {
             pthread_mutex_lock(&mr->debugLock);
             fprintf (stderr, "reader about to wait for BUF A barrier\n");
+            fflush(stderr);
             pthread_mutex_unlock(&mr->debugLock);
         }
 
         if (-1 == (retval = pthread_barrier_waitcancel(&mr->barrier[BUF_A], &cancel))) {
+            if (!cancel) {
+                fprintf (stderr, "reader failed to wait for BUF A barrier\n");
+                fflush(stderr);
+                retval = EXIT_FAILURE;
+            }
+            cancel=1;
+            goto pthread_exit;
+        }
+
+        if (retval == ETIMEDOUT) {
+            if (!cancel) {
+                fprintf (stderr, "reader timed out on BUF A\n");
+                fflush(stderr);
+            }
             retval = EXIT_FAILURE;
-            pthread_exit((void *) retval);
+            cancel=1;
+            goto pthread_exit;
         }
 
         if (verbosity) {
             pthread_mutex_lock(&mr->debugLock);
             fprintf (stderr, "reader done waiting for BUF A barrier\n");
+            fflush(stderr);
             pthread_mutex_unlock(&mr->debugLock);
         }
         
-        if ((mr->bufBytes[BUF_A] == 0) || cancel)
+        if (cancel) {
+            if (verbosity) {
+                pthread_mutex_lock(&mr->debugLock);
+                fprintf (stderr, "reader told to shut down\n");
+                fflush(stderr);
+                pthread_mutex_unlock(&mr->debugLock);
+            }
             break;
+        }
+
+        if (mr->bufBytes[BUF_A] == 0) {
+            if (verbosity) {
+                pthread_mutex_lock(&mr->debugLock);
+                fprintf (stderr, "reader ran out of data in BUF A\n");
+                fflush(stderr);
+                pthread_mutex_unlock(&mr->debugLock);
+            }
+            break;
+        }
 
         // ========================= B BUFFER READ, A BUFFER WRITE START====================
        
+        if (verbosity) {
+            pthread_mutex_lock(&mr->debugLock);
+            fprintf(stderr, "reader about to read into BUF B\n");
+            fflush(stderr);
+            pthread_mutex_unlock(&mr->debugLock);
+        }
+
         if (-1 == (mr->bufBytes[BUF_B]  = fread(mr->buf[BUF_B], 1, PAGESIZE, mr->source))) {
             fprintf(stderr, "failed to read from %s: %s\n", mr->filename, strerror(errno));
+            fflush(stderr);
             retval = EXIT_FAILURE;
             cancel = 1;
-            pthread_exit((void*) retval);
+            goto pthread_exit;
         }
 
         if (mr->hashFiles && mr->bufBytes[BUF_B])
@@ -115,32 +192,92 @@ void *startReader(void *arg)
 
         if (verbosity) {
             pthread_mutex_lock(&mr->debugLock);
-            fprintf(stderr, "%ld bytes read into buf B\n", mr->bufBytes[BUF_B]);
+            fprintf(stderr, "reader read %ld bytes into BUF B\n", mr->bufBytes[BUF_A]);
+            fflush(stderr);
             pthread_mutex_unlock(&mr->debugLock);
         }
 
         // ========================= B BUFFER READ, A BUFFER WRITE END======================
-
-        // here we wait for ther 
-        //printf("reader is waiting for BUF B barrier\n");
-        //fflush(stdout);
+        
+        if (verbosity) {
+            pthread_mutex_lock(&mr->debugLock);
+            fprintf (stderr, "reader about to wait for BUF B barrier\n");
+            fflush(stderr);
+            pthread_mutex_unlock(&mr->debugLock);
+        }
         
         if (-1 == (retval = pthread_barrier_waitcancel(&mr->barrier[BUF_B], &cancel))) {
+            if (!cancel) {
+                fprintf (stderr, "reader failed to wait for BUF B barrier\n");
+                fflush(stderr);
+                retval = EXIT_FAILURE;
+            }
+            cancel=1;
+            goto pthread_exit;
+        }
+
+        if (retval == ETIMEDOUT) {
+            fprintf (stderr, "reader timed out on BUF B\n");
+            fflush(stderr);
             retval = EXIT_FAILURE;
-            pthread_exit((void *) retval);
+            cancel=1;
+            goto pthread_exit;
         }
 
         if (verbosity) {
             pthread_mutex_lock(&mr->debugLock);
             fprintf (stderr, "reader done waiting for BUF B barrier\n");
+            fflush(stderr);
             pthread_mutex_unlock(&mr->debugLock);
         }
 
-        if ((mr->bufBytes[BUF_B] == 0) || cancel )
+        if (cancel) {
+            if (verbosity) {
+                pthread_mutex_lock(&mr->debugLock);
+                fprintf (stderr, "reader told to shut down\n");
+                fflush(stderr);
+                pthread_mutex_unlock(&mr->debugLock);
+            }
             break;
+        }
+
+        if (mr->bufBytes[BUF_B] == 0) {
+            if (verbosity) {
+                pthread_mutex_lock(&mr->debugLock);
+                fprintf (stderr, "reader ran out of data in BUF B\n");
+                fflush(stderr);
+                pthread_mutex_unlock(&mr->debugLock);
+            }
+            break;
+        }
+
+        if (verbosity) {
+            pthread_mutex_lock(&mr->debugLock);
+            fprintf (stderr, "reader reached loop end\n");
+            fflush(stderr);
+            pthread_mutex_unlock(&mr->debugLock);
+        }
     }
 
-    fclose(mr->source);
+    if (verbosity) {
+        pthread_mutex_lock(&mr->debugLock);
+        fprintf (stderr, "reader closing file\n");
+        fflush(stderr);
+        pthread_mutex_unlock(&mr->debugLock);
+    }
+
+pthread_exit:
+    if (mr->source) {
+        fclose(mr->source);
+        mr->source=NULL;
+    }
+    if (verbosity) {
+        pthread_mutex_lock(&mr->debugLock);
+        fprintf (stderr, "reader closed file\n");
+        fflush(stderr);
+        pthread_mutex_unlock(&mr->debugLock);
+    }
+
     if (!cancel && mr->hashFiles) {
         int i;
         CC_MD5_Final(mr->md5sum, &mr->md5state);
@@ -153,7 +290,12 @@ void *startReader(void *arg)
             pthread_mutex_unlock(&mr->debugLock);
         }
     }
-
+    if (verbosity) {
+        pthread_mutex_lock(&mr->debugLock);
+        fprintf (stderr, "reader exiting\n");
+        fflush(stderr);
+        pthread_mutex_unlock(&mr->debugLock);
+    }
     pthread_exit((void*) retval);
 }
 

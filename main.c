@@ -15,11 +15,12 @@ static struct option longopts[] = {
     { NULL,                     0,                      NULL,           0 }
 };
 
-int verbosity;
-int cancel;
-int                 hashFiles, 
-                    createParents,
-                    forceOverwrite;
+// global vars
+int verbosity,
+    cancel,
+    hashFiles, 
+    createParents,
+    forceOverwrite;
 
 mcp_reader_t reader;
 
@@ -118,7 +119,7 @@ void copyFile(const char *source, int argc, char **argv)
 int main(int argc, char **argv)
 {
     char                *source;
-    struct stat         s;
+    struct stat         sb;
     int                 streamCopy,
                         ch;
     long                retval, sz;
@@ -132,7 +133,7 @@ int main(int argc, char **argv)
     retval = 0;
 
     // parse arguments
-    while ((ch = getopt_long(argc, argv, "fhv", longopts, NULL)) != -1)
+    while ((ch = getopt_long(argc, argv, "fhpv", longopts, NULL)) != -1)
         switch (ch) {
             case 'f':
                 forceOverwrite = 1;
@@ -141,7 +142,7 @@ int main(int argc, char **argv)
                 hashFiles = 1;
                 break;
             case 'p':
-                createParents = 1; // TODO
+                createParents = 1; 
                 break;
             case 'v':
                 verbosity++;
@@ -162,27 +163,28 @@ int main(int argc, char **argv)
     argv += 1;
 
     if (0 == strcmp("-",source)) {
-        if (verbosity)
+        if (verbosity) {
             fprintf(stderr, "source is stdin\n");
+        }
         copyFile(source, argc, argv);
     }
-    else if( 0 != (retval = stat(source,&s))) {
+    else if( 0 != (retval = stat(source,&sb))) {
         fprintf(stderr,"Couldn't determine file type for %s: %s\n", source, strerror(errno));
         exit(EXIT_FAILURE);
     }
-    else if (s.st_mode & S_IFREG) {
+    else if (sb.st_mode & S_IFREG) {
         if (verbosity) 
             fprintf(stderr, "source is a file: %s\n", source);
         copyFile(source, argc, argv);
     }
-    else if (s.st_mode & S_IFDIR) {
+    else if (sb.st_mode & S_IFDIR) {
         if (verbosity) 
             fprintf(stderr, "source is a directory: %s\n", source);
         copyDirectory(source, argc, argv);
     }
     else {
         fprintf(stderr, "source is an unknown type: %s mode %x\n", 
-            source, s.st_mode);
+            source, sb.st_mode);
         exit(EXIT_FAILURE);
     }
 }
