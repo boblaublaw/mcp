@@ -114,12 +114,10 @@ void *startReader(void *arg)
     long retval = 0;
     int bufId = 0;
 
-    while(1) {
-        if (1 != (retval = readIntoBuf(mr, bufId))) {
-            break;
-        }
+    // so long as there is still data available,
+    // keep reading into the next buffer
+    while(1 == (retval = readIntoBuf(mr, bufId))) 
         bufId = !bufId;
-    }
 
     logDebug("reader closing file\n");
 

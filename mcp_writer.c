@@ -227,12 +227,10 @@ evaluate_destination:
         goto thread_exit;
     }
    
-    while (1) {
-        if (1 != (retval = writeFromBuf(self, bufId))) 
-            break;
-
+    // so long as we believe there is more data, keep 
+    // writing from the next buffer to the stream
+    while (1 == (retval = writeFromBuf(self, bufId))) 
         bufId = !bufId;
-    }
 
 thread_exit:
     if (self->stream) {
