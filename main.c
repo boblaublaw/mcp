@@ -22,6 +22,7 @@ int exitFlag,
     forceOverwrite;
 
 mcp_reader_t reader;
+pthread_attr_t      attr;
 
 void usage(long retval)
 {
@@ -42,7 +43,6 @@ void copyDirectory(const char *source, int argc, char **argv)
 // this function does not return
 void copyFile(const char *source, int argc, char **argv) 
 {
-    pthread_attr_t      attr;
     void                *thread_status;
     long                retval=0;
     unsigned            numWriters, writerIndex;
@@ -50,8 +50,6 @@ void copyFile(const char *source, int argc, char **argv)
 
     numWriters = 0;
     bzero(writers, sizeof(writers));
-    pthread_attr_init(&attr);
-    pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_JOINABLE);
 
     // at this point, argc is equal to the number of threads (writers plus readers)
     if (-1 == initReader(&reader, source, argc, hashFiles)) {
@@ -111,7 +109,6 @@ void copyFile(const char *source, int argc, char **argv)
         }
     }
 
-    pthread_attr_destroy(&attr);
     exit(retval);
 }
 
@@ -124,6 +121,8 @@ int main(int argc, char **argv)
                         ch;
     long                retval, sz;
 
+    pthread_attr_init(&attr);
+    pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_JOINABLE);
     forceOverwrite = 0;
     streamCopy=0;
     hashFiles = 0; 
@@ -179,6 +178,9 @@ int main(int argc, char **argv)
         logFatal("source is an unknown type: %s mode %x\n", 
             source, sb.st_mode);
     }
+
+    pthread_attr_destroy(&attr);
+    exit(EXIT_SUCCESS);
 }
 
 /* vim: set noet sw=5 ts=4: */
