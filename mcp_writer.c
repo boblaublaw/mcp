@@ -80,13 +80,60 @@ int exists(const char *filename)
         return 1;
     return 0;
 }
+       
+int writeFromBuf(mcp_writer_t *self, int bufId) 
+{
+    int retval;
+
+    logDebug("\twriter %d about to wait for BUF %d barrier\n", self->tid, bufId);
+
+    if (-1 == (retval = pthread_barrier_waitcancel(&self->mr->barrier[bufId], &exitFlag))) {
+        if (!exitFlag) {
+            logDebug("writer %d: failed to wait for BUF %d barrier: %ld\n", 
+                self->tid, bufId, retval);
+        }
+        exitFlag = 1;
+        return -1;
+    }
+
+    if (retval == ETIMEDOUT) {
+        if (!exitFlag) {
+            logDebug("writer %d: timed out waiting for BUF %d barrier\n", 
+                self->tid, bufId);
+        }
+        exitFlag = 1;
+        return -1;
+    }
+
+    logDebug("\twriter %d done waiting for BUF %d barrier\n", self->tid, bufId);
+
+    if (exitFlag) {
+        logDebug("\twriter %d told to shut down\n", self->tid);
+        return 0;
+    }
+
+    if (self->mr->bufBytes[bufId] == 0 ) {
+        logDebug("\twriter %d has no more data\n", self->tid);
+        return 0;
+    }
+
+    if (self->mr->bufBytes[bufId] != fwrite(self->mr->buf[bufId], 1, self->mr->bufBytes[bufId], self->stream)) {
+        exitFlag = 1;
+        logError("writer %d failed to write %ld bytes from BUF %d\n", 
+            self->tid, self->mr->bufBytes[bufId], bufId);
+        return -1;
+    }
+    logDebug("\twriter %d wrote %ld bytes from BUF %d\n", self->tid, self->mr->bufBytes[bufId], bufId);
+
+    return 1;
+}
 
 void *startWriter(void *arg)
 {
     long                retval = 0;
     char                *parentDir = NULL;
-    FILE                *stream = NULL;
     int                 i=0;
+    int                 bufId = 0;
 
     assert (arg);
     mcp_writer_t *self = (mcp_writer_t *)arg;
@@ -172,7 +219,7 @@ evaluate_destination:
     logDebug("\twriter %d opening %s for writing\n", 
         self->tid, self->filename);
 
-    if (NULL == (stream = fopen (self->filename, "w+"))) {
+    if (NULL == (self->stream = fopen (self->filename, "w+"))) {
         logError("writer %d could not open %s for writing: %s\n", 
             self->tid, self->filename, strerror(errno));
         retval = -1;
@@ -181,101 +228,16 @@ evaluate_destination:
     }
    
     while (1) {
-        logDebug("\twriter %d about to wait for BUF A barrier\n", self->tid);
-
-        if (-1 == (retval = pthread_barrier_waitcancel(&self->mr->barrier[BUF_A], &exitFlag))) {
-            if (!exitFlag) {
-                logDebug("writer %d: failed to wait for BUF A barrier: %ld\n", 
-                    self->tid, retval);
-            }
-            
-            exitFlag = 1;
-            goto thread_exit;
-        }
-
-        if (retval == ETIMEDOUT) {
-            if (!exitFlag) {
-                logDebug("writer %d: timed out waiting for BUF A barrier\n", self->tid);
-            }
-            exitFlag = 1;
-            goto thread_exit;
-        }
-
-        logDebug("\twriter %d done waiting for BUF A barrier\n", self->tid);
-
-        // ========================= A BUFFER WRITE, B BUFFER READ START====================
-        
-        if (exitFlag) {
-            logDebug("\twriter %d told to shut down\n", self->tid);
+        if (1 != (retval = writeFromBuf(self, bufId))) 
             break;
-        }
 
-        if (self->mr->bufBytes[BUF_A] == 0 ) {
-            logDebug("\twriter %d has no more data\n", self->tid);
-            break;
-        }
-
-        if (self->mr->bufBytes[BUF_A] != fwrite(self->mr->buf[BUF_A], 1, self->mr->bufBytes[BUF_A], stream)) {
-            retval=-1;
-            exitFlag = 1;
-            logError("writer %d failed to write %ld bytes from BUF A\n", 
-                self->tid, self->mr->bufBytes[BUF_A]);
-            goto thread_exit;
-        }
-
-        logDebug("\twriter %d wrote %ld bytes from BUF A\n", self->tid, self->mr->bufBytes[BUF_A]);
-
-        // ========================= A BUFFER WRITE, B BUFFER READ END======================
-
-        logDebug("\twriter %d about to wait for BUF B barrier\n", self->tid);
-
-        if (-1 == (retval = pthread_barrier_waitcancel(&self->mr->barrier[BUF_B], &exitFlag))) {
-            if (!exitFlag) {
-                logError("writer %d: failed to wait for BUF B barrier: %ld\n", 
-                    self->tid, retval);
-            }
-            
-            exitFlag = 1;
-            goto thread_exit;
-        }
-
-        if (retval == ETIMEDOUT) {
-            logDebug("writer %d: timed out waiting for BUF B barrier\n", self->tid);
-            exitFlag = 1;
-            goto thread_exit;
-        }
-
-        logDebug("\twriter %d done waiting for BUF B barrier\n", self->tid);
-
-        // ========================= A BUFFER READ, B BUFFER WRITE START====================
-        
-        if (exitFlag) {
-            logDebug("\twriter %d told to shut down\n", self->tid);
-            break;
-        }
-
-        if (self->mr->bufBytes[BUF_B] == 0 ) {
-            logDebug("\twriter %d has no more data\n", self->tid);
-            break;
-        }
-
-        if (self->mr->bufBytes[BUF_B] != fwrite(self->mr->buf[BUF_B], 1, self->mr->bufBytes[BUF_B], stream)) {
-            logError("writer %d failed to write %ld bytes from BUF B\n", 
-                self->tid, self->mr->bufBytes[BUF_A]);
-            retval = -1;
-            exitFlag = 1;
-            goto thread_exit;
-        }
-
-        logDebug("\twriter %d wrote %ld bytes from BUF B\n", self->tid, self->mr->bufBytes[BUF_B]);
-
-        // ========================= A BUFFER WRITE, B BUFFER READ END======================
+        bufId = !bufId;
     }
 
 thread_exit:
-    if (stream) {
-        fclose(stream);
-        stream=NULL;
+    if (self->stream) {
+        fclose(self->stream);
+        self->stream=NULL;
     }
     if (parentDir) {
         free(parentDir);

@@ -46,6 +46,7 @@ typedef struct mcp_writer_t {
     unsigned            tid;
     int                 forceOverwrite;
     mcp_reader_t        *mr;
+    FILE                *stream;
 } mcp_writer_t;
 
 // function prototypes:

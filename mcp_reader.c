@@ -116,10 +116,9 @@ void *startReader(void *arg)
 
     while(1) {
         if (1 != (retval = readIntoBuf(mr, bufId))) {
-                goto pthread_exit;
+            break;
         }
         bufId = !bufId;
-        logDebug("setting new bufId to %d\n", bufId);
     }
 
     logDebug("reader closing file\n");
