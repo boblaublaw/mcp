@@ -65,7 +65,7 @@ int pthread_barrier_waitcancel(pthread_barrier_t *barrier, int *cancel)
             fflush(stderr);
         }
         // check on this once per second
-        retval = pthread_barrier_waitseconds(barrier, 1);
+        retval = pthread_barrier_waitseconds(barrier, 5);
         if (verbosity > 2) {
             fprintf (stderr, "wait over: %ld\n", retval);
             fflush(stderr);
