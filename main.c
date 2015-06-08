@@ -17,7 +17,6 @@ int exitFlag,
     createParents,
     forceOverwrite;
 
-mcp_reader_t reader;
 pthread_attr_t      attr;
 
 void usage(long retval)
@@ -81,6 +80,11 @@ int main(int argc, char **argv)
 
     argc -= 1;
     argv += 1;
+
+    if ((argc > 32) || (argc < 1)) {
+        logError("Wrong number of arguments\n");
+        usage(-1);
+    }
 
     if (0 == strcmp("-",source)) {
         logDebug("source is stdin\n");

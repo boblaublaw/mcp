@@ -2,17 +2,14 @@
 #include <string.h>         // strerror
 #include "mcp.h"            // mcp_writer_t
 
-extern int exitFlag,
-    hashFiles,
-    forceOverwrite;
-#if 0
-    createParents,
-#endif
+mcp_reader_t        fileReader;
 
-extern mcp_reader_t reader;
+extern int  exitFlag,
+            hashFiles,
+            forceOverwrite;
+
 extern pthread_attr_t      attr;
 
-// this function does not return
 int copyFile(const char *source, int argc, char **argv) 
 {
     void                *thread_status;
@@ -23,8 +20,8 @@ int copyFile(const char *source, int argc, char **argv)
     numWriters = 0;
     bzero(writers, sizeof(writers));
 
-    // at this point, argc is equal to the number of threads (writers plus readers)
-    if (-1 == initReader(&reader, source, argc, hashFiles)) {
+    // at this point, argc is equal to the number of threads (writers plus file readers)
+    if (-1 == initReader(&fileReader, source, argc, hashFiles)) {
         return -1;
     }
 
@@ -34,7 +31,7 @@ int copyFile(const char *source, int argc, char **argv)
         mw->filename = strdup(argv[0]);
         mw->tid = numWriters;
         mw->forceOverwrite = forceOverwrite;
-        mw->mr = &reader;
+        mw->mr = &fileReader;
         retval = pthread_create(&mw->thread, &attr, startWriter, 
             (void *)mw);
         if (retval != 0 ) {
@@ -46,14 +43,14 @@ int copyFile(const char *source, int argc, char **argv)
         numWriters += 1;
     }
 
-    // launch reader thread
-    if (0 != (retval = pthread_create(&reader.thread, &attr, startReader, (void *)&reader))) {
+    // launch file reader thread
+    if (0 != (retval = pthread_create(&fileReader.thread, &attr, startReader, (void *)&fileReader))) {
         logFatal("return code from pthread_create() is %ld\n", retval);    
     }
 
-    // wait for the reader to exit
-    if (-1 == (retval = pthread_join(reader.thread, &thread_status))) {
-        logFatal("failed to join reader:%s\n", strerror(errno));
+    // wait for the file reader to exit
+    if (-1 == (retval = pthread_join(fileReader.thread, &thread_status))) {
+        logFatal("failed to join file reader:%s\n", strerror(errno));
     }
 
     // wait for all writers to exit
