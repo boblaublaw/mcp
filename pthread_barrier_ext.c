@@ -48,10 +48,10 @@ int pthread_barrier_waitseconds(pthread_barrier_t *barrier, const int seconds)
 }
 
 
-// this function will wait for a condition variable or a cancel variable
+// this function will wait for a condition variable or a exitFlag variable
 // to be set.
-//  0 or 1 indicate the barrier was satisfied, -1 is a problem or cancellation
-int pthread_barrier_waitcancel(pthread_barrier_t *barrier, int *cancel)
+//  0 or 1 indicate the barrier was satisfied, -1 is a problem or exitFlaglation
+int pthread_barrier_waitcancel(pthread_barrier_t *barrier, int *exitFlag)
 {
     long int retval = 0;
 
@@ -77,16 +77,16 @@ int pthread_barrier_waitcancel(pthread_barrier_t *barrier, int *cancel)
                 break;
                 ;;
             case ETIMEDOUT:
-                if (*cancel) {
+                if (*exitFlag) {
                     if (verbosity > 2) {
-                        fprintf (stderr, "thread already cancelled\n");
+                        fprintf (stderr, "thread already exitFlagled\n");
                         fflush(stderr);
                     }
                 }
                 else {
-                    *cancel=1;
+                    *exitFlag=1;
                     if (verbosity > 2) {
-                        fprintf (stderr, "pthread barrier timed out. cancelling thread.\n");
+                        fprintf (stderr, "pthread barrier timed out. exitFlagling thread.\n");
                         fflush(stderr);
                     }
                 }
@@ -94,7 +94,7 @@ int pthread_barrier_waitcancel(pthread_barrier_t *barrier, int *cancel)
                 ;;
             default:
                 fprintf (stderr, "unexpected pthread_barrier_wait error: %ld\n", retval);
-                *cancel = 1;
+                *exitFlag = 1;
                 return -1;
                 ;;
         }

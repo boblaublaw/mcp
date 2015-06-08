@@ -17,7 +17,7 @@ static struct option longopts[] = {
 
 // global vars
 int verbosity,
-    cancel,
+    exitFlag,
     hashFiles, 
     createParents,
     forceOverwrite;
@@ -117,7 +117,7 @@ void copyFile(const char *source, int argc, char **argv)
     }
 
     // if hash files were requested, write them now
-    if (hashFiles && !cancel) {
+    if (hashFiles && !exitFlag) {
         for (writerIndex=0; writerIndex < numWriters; writerIndex++) {
             mcp_writer_t *mw = &writers[writerIndex];
             writeHashFile(mw->filename, mw->mr->md5sum);
@@ -142,7 +142,7 @@ int main(int argc, char **argv)
     hashFiles = 0; 
     createParents = 0;
     verbosity=0;
-    cancel = 0;
+    exitFlag = 0;
     retval = 0;
 
     // parse arguments

@@ -11,7 +11,7 @@
 #include "mcp.h"
 
 extern int verbosity;
-extern int cancel;
+extern int exitFlag;
 extern int createParents;
 
 int _mkdir(const char *dir) {
@@ -120,14 +120,14 @@ evaluate_destination:
             retval = -1;
             fprintf(stderr, "Could not create a new destination filename\n");
             fflush(stderr);
-            cancel = 1;
+            exitFlag = 1;
             goto thread_exit;
         }
         if (!self->forceOverwrite) {
             retval=-1;
             fprintf(stderr, "File exists (-f to force): %s\n", self->filename);
             fflush(stderr);
-            cancel = 1;
+            exitFlag = 1;
             goto thread_exit;
         }
         if (verbosity) {
@@ -158,7 +158,7 @@ evaluate_destination:
             retval = -1;
             fprintf(stderr, "Failed to determine dirname for %s: %s\n", self->filename, strerror(errno));
             fflush(stderr);
-            cancel = 1;
+            exitFlag = 1;
             goto thread_exit;
         }
 
@@ -175,7 +175,7 @@ evaluate_destination:
                     fprintf(stderr, "Failed to create parent directory %s: %s\n", 
                         parentDir, strerror(errno));
                     fflush(stderr);
-                    cancel = 1;
+                    exitFlag = 1;
                     goto thread_exit;
                 }
                 if (exists(parentDir)) {
@@ -192,7 +192,7 @@ evaluate_destination:
                     fprintf(stderr, "failed to find new parent directory %s: %s\n", 
                         parentDir, strerror(errno));
                     fflush(stderr);
-                    cancel = 1;
+                    exitFlag = 1;
                     goto thread_exit;
                 }
             }
@@ -201,7 +201,7 @@ evaluate_destination:
                 fprintf(stderr, "destination directory %s does not exist, -p to create parents\n",
                     parentDir);
                 fflush(stderr);
-                cancel = 1;
+                exitFlag = 1;
             }
         }
     }
@@ -216,7 +216,7 @@ evaluate_destination:
         fprintf(stderr, "writer %d could not open %s for writing: %s\n", 
             self->tid, self->filename, strerror(errno));
         retval = -1;
-        cancel = 1;
+        exitFlag = 1;
         goto thread_exit;
     }
    
@@ -228,23 +228,23 @@ evaluate_destination:
             pthread_mutex_unlock(&self->mr->debugLock);
         }
 
-        if (-1 == (retval = pthread_barrier_waitcancel(&self->mr->barrier[BUF_A], &cancel))) {
-            if (!cancel) {
+        if (-1 == (retval = pthread_barrier_waitcancel(&self->mr->barrier[BUF_A], &exitFlag))) {
+            if (!exitFlag) {
                 fprintf(stderr, "writer %d: failed to wait for BUF A barrier: %ld\n", 
                     self->tid, retval);
                 fflush(stderr);
             }
             
-            cancel = 1;
+            exitFlag = 1;
             goto thread_exit;
         }
 
         if (retval == ETIMEDOUT) {
-            if (!cancel) {
+            if (!exitFlag) {
                 fprintf(stderr, "writer %d: timed out waiting for BUF A barrier\n", self->tid);
                 fflush(stderr);
             }
-            cancel = 1;
+            exitFlag = 1;
             goto thread_exit;
         }
 
@@ -257,7 +257,7 @@ evaluate_destination:
 
         // ========================= A BUFFER WRITE, B BUFFER READ START====================
         
-        if (cancel) {
+        if (exitFlag) {
             if (verbosity) {
                 pthread_mutex_lock(&self->mr->debugLock);
                 fprintf (stderr, "\twriter %d told to shut down\n", self->tid);
@@ -279,7 +279,7 @@ evaluate_destination:
 
         if (self->mr->bufBytes[BUF_A] != fwrite(self->mr->buf[BUF_A], 1, self->mr->bufBytes[BUF_A], stream)) {
             retval=-1;
-            cancel = 1;
+            exitFlag = 1;
             fprintf (stderr, "writer %d failed to write %ld bytes from BUF A\n", 
                 self->tid, self->mr->bufBytes[BUF_A]);
             fflush(stderr);
@@ -302,21 +302,21 @@ evaluate_destination:
             pthread_mutex_unlock(&self->mr->debugLock);
         }
 
-        if (-1 == (retval = pthread_barrier_waitcancel(&self->mr->barrier[BUF_B], &cancel))) {
-            if (!cancel) {
+        if (-1 == (retval = pthread_barrier_waitcancel(&self->mr->barrier[BUF_B], &exitFlag))) {
+            if (!exitFlag) {
                 fprintf(stderr, "writer %d: failed to wait for BUF B barrier: %ld\n", 
                     self->tid, retval);
                 fflush(stderr);
             }
             
-            cancel = 1;
+            exitFlag = 1;
             goto thread_exit;
         }
 
         if (retval == ETIMEDOUT) {
             fprintf(stderr, "writer %d: timed out waiting for BUF B barrier\n", self->tid);
             fflush(stderr);
-            cancel = 1;
+            exitFlag = 1;
             goto thread_exit;
         }
 
@@ -329,7 +329,7 @@ evaluate_destination:
 
         // ========================= A BUFFER READ, B BUFFER WRITE START====================
         
-        if (cancel) {
+        if (exitFlag) {
             if (verbosity) {
                 pthread_mutex_lock(&self->mr->debugLock);
                 fprintf (stderr, "\twriter %d told to shut down\n", self->tid);
@@ -354,7 +354,7 @@ evaluate_destination:
                 self->tid, self->mr->bufBytes[BUF_A]);
             fflush(stderr);
             retval = -1;
-            cancel = 1;
+            exitFlag = 1;
             goto thread_exit;
         }
 

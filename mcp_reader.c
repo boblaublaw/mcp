@@ -9,7 +9,7 @@
 #include "mcp.h"
 
 extern int verbosity;
-extern int cancel;
+extern int exitFlag;
 
 int initReader(mcp_reader_t *mr, const char *filename, int writerCount, int hashFiles)
 {
@@ -100,7 +100,7 @@ void *startReader(void *arg)
             fprintf(stderr, "failed to read from %s: %s\n", mr->filename, strerror(errno));
             fflush(stderr);
             retval = EXIT_FAILURE;
-            cancel = 1;
+            exitFlag = 1;
             goto pthread_exit;
         }
 
@@ -124,23 +124,23 @@ void *startReader(void *arg)
             pthread_mutex_unlock(&mr->debugLock);
         }
 
-        if (-1 == (retval = pthread_barrier_waitcancel(&mr->barrier[BUF_A], &cancel))) {
-            if (!cancel) {
+        if (-1 == (retval = pthread_barrier_waitcancel(&mr->barrier[BUF_A], &exitFlag))) {
+            if (!exitFlag) {
                 fprintf (stderr, "reader failed to wait for BUF A barrier\n");
                 fflush(stderr);
                 retval = EXIT_FAILURE;
             }
-            cancel=1;
+            exitFlag=1;
             goto pthread_exit;
         }
 
         if (retval == ETIMEDOUT) {
-            if (!cancel) {
+            if (!exitFlag) {
                 fprintf (stderr, "reader timed out on BUF A\n");
                 fflush(stderr);
             }
             retval = EXIT_FAILURE;
-            cancel=1;
+            exitFlag=1;
             goto pthread_exit;
         }
 
@@ -151,7 +151,7 @@ void *startReader(void *arg)
             pthread_mutex_unlock(&mr->debugLock);
         }
         
-        if (cancel) {
+        if (exitFlag) {
             if (verbosity) {
                 pthread_mutex_lock(&mr->debugLock);
                 fprintf (stderr, "reader told to shut down\n");
@@ -184,7 +184,7 @@ void *startReader(void *arg)
             fprintf(stderr, "failed to read from %s: %s\n", mr->filename, strerror(errno));
             fflush(stderr);
             retval = EXIT_FAILURE;
-            cancel = 1;
+            exitFlag = 1;
             goto pthread_exit;
         }
 
@@ -207,23 +207,23 @@ void *startReader(void *arg)
             pthread_mutex_unlock(&mr->debugLock);
         }
         
-        if (-1 == (retval = pthread_barrier_waitcancel(&mr->barrier[BUF_B], &cancel))) {
-            if (!cancel) {
+        if (-1 == (retval = pthread_barrier_waitcancel(&mr->barrier[BUF_B], &exitFlag))) {
+            if (!exitFlag) {
                 fprintf (stderr, "reader failed to wait for BUF B barrier\n");
                 fflush(stderr);
                 retval = EXIT_FAILURE;
             }
-            cancel=1;
+            exitFlag=1;
             goto pthread_exit;
         }
 
         if (retval == ETIMEDOUT) {
-            if (!cancel) {
+            if (!exitFlag) {
                 fprintf (stderr, "reader timed out on BUF B\n");
                 fflush(stderr);
             }
             retval = EXIT_FAILURE;
-            cancel=1;
+            exitFlag=1;
             goto pthread_exit;
         }
 
@@ -234,7 +234,7 @@ void *startReader(void *arg)
             pthread_mutex_unlock(&mr->debugLock);
         }
 
-        if (cancel) {
+        if (exitFlag) {
             if (verbosity) {
                 pthread_mutex_lock(&mr->debugLock);
                 fprintf (stderr, "reader told to shut down\n");
@@ -281,7 +281,7 @@ pthread_exit:
         pthread_mutex_unlock(&mr->debugLock);
     }
 
-    if (!cancel && mr->hashFiles) {
+    if (!exitFlag && mr->hashFiles) {
         int i;
         CC_MD5_Final(mr->md5sum, &mr->md5state);
         if (verbosity) {
