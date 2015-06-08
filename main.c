@@ -145,6 +145,8 @@ int main(int argc, char **argv)
     exitFlag = 0;
     retval = 0;
 
+    logInit(stderr);
+
     // parse arguments
     while ((ch = getopt_long(argc, argv, "fhpv", longopts, NULL)) != -1)
         switch (ch) {
@@ -164,8 +166,7 @@ int main(int argc, char **argv)
                 usage(EXIT_SUCCESS);
     }
 
-    if (verbosity)
-        fprintf(stderr, "verbosity: %d\n", verbosity);
+    logDebug("verbosity: %d\n", verbosity);
     
     argc -= optind;
     argv += optind;

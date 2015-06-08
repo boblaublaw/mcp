@@ -2,6 +2,7 @@
 #include <pthread.h>
 #include <CommonCrypto/CommonDigest.h>
 
+#include "log.h"
 #ifdef __APPLE__
 #include "pthread_barrier.h"
 #endif
