@@ -1,13 +1,9 @@
-#include <stdio.h>          // printf, etc
+#include <errno.h>          // errno
+#include <string.h>         // strerror
+#include <sys/stat.h>       // stat
 #include <stdlib.h>         // exit()
 #include <unistd.h>         // getopt() 
 #include <getopt.h>         // getopt()
-#include <string.h>         // strdup()
-#include <pthread.h>        // pthread_*
-#include <assert.h>         // assert
-#include <string.h>         // strerror
-#include <errno.h>          // errno
-#include <sys/stat.h>       // stat
 #include "mcp.h"            // mcp_writer_t
 
 static struct option longopts[] = {
@@ -39,79 +35,6 @@ void copyDirectory(const char *source, int argc, char **argv)
 {
     logFatal("copying directories not yet supported\n");
 }
-
-// this function does not return
-void copyFile(const char *source, int argc, char **argv) 
-{
-    void                *thread_status;
-    long                retval=0;
-    unsigned            numWriters, writerIndex;
-    mcp_writer_t        writers[MCP_MAX_WRITERS];
-
-    numWriters = 0;
-    bzero(writers, sizeof(writers));
-
-    // at this point, argc is equal to the number of threads (writers plus readers)
-    if (-1 == initReader(&reader, source, argc, hashFiles)) {
-        exit(EXIT_FAILURE);
-    }
-
-    // launch all writer threads
-    while (argc) {
-        mcp_writer_t *mw = &writers[numWriters];
-        mw->filename = strdup(argv[0]);
-        mw->tid = numWriters;
-        mw->forceOverwrite = forceOverwrite;
-        mw->mr = &reader;
-        retval = pthread_create(&mw->thread, &attr, startWriter, 
-            (void *)mw);
-        if (retval != 0 ) {
-            printf("ERROR; return code from pthread_create() is %ld\n", retval);
-            exit(EXIT_FAILURE);
-        }
-        argc -= 1;
-        argv += 1;
-        numWriters += 1;
-    }
-
-    // launch reader thread
-    if (0 != (retval = pthread_create(&reader.thread, &attr, startReader, (void *)&reader))) {
-        logFatal("return code from pthread_create() is %ld\n", retval);    
-    }
-
-    // wait for the reader to exit
-    if (-1 == (retval = pthread_join(reader.thread, &thread_status))) {
-        logFatal("failed to join reader:%s\n", strerror(errno));
-    }
-
-    // wait for all writers to exit
-    for (writerIndex=0; writerIndex < numWriters; writerIndex++) {
-        if (-1 == (retval = pthread_join(writers[writerIndex].thread, &thread_status))) {
-            logError("writer %d failed to join:%s\n", 
-                writers[writerIndex].tid, strerror(errno));
-        }
-        else {
-            logDebug("writer %d joined with status %ld\n", 
-                writers[writerIndex].tid, (long)thread_status);
-        }
-        // even if the join is successful, we combine the returned
-        // statuses together to check if any of them were failures
-        retval |= (long)thread_status;
-    }
-    logDebug2("Main: completed joins with final return value of %ld\n",
-        retval);
-
-    // if hash files were requested, write them now
-    if (hashFiles && !exitFlag) {
-        for (writerIndex=0; writerIndex < numWriters; writerIndex++) {
-            mcp_writer_t *mw = &writers[writerIndex];
-            writeHashFile(mw->filename, mw->mr->md5sum);
-        }
-    }
-
-    exit(retval);
-}
-
 
 int main(int argc, char **argv)
 {
@@ -161,14 +84,14 @@ int main(int argc, char **argv)
 
     if (0 == strcmp("-",source)) {
         logDebug("source is stdin\n");
-        copyFile(source, argc, argv);
+        retval = copyFile(source, argc, argv);
     }
     else if( 0 != (retval = stat(source,&sb))) {
         logFatal("Couldn't determine file type for %s: %s\n", source, strerror(errno));
     }
     else if (sb.st_mode & S_IFREG) {
         logDebug("source is a file: %s\n", source);
-        copyFile(source, argc, argv);
+        retval = copyFile(source, argc, argv);
     }
     else if (sb.st_mode & S_IFDIR) {
         logDebug("source is a directory: %s\n", source);
@@ -180,7 +103,7 @@ int main(int argc, char **argv)
     }
 
     pthread_attr_destroy(&attr);
-    exit(EXIT_SUCCESS);
+    exit(retval);
 }
 
 /* vim: set noet sw=5 ts=4: */

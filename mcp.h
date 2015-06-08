@@ -3,6 +3,8 @@
 #include <CommonCrypto/CommonDigest.h>
 
 #include "log.h"
+#include "copyfile.h"
+
 #ifdef __APPLE__
 #include "pthread_barrier.h"
 #endif
