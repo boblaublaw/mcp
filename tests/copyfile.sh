@@ -29,18 +29,12 @@ function verify()
 echo copying test file to $num_writers destinations
 x=1
 w=""
-echo
-echo script hash time:
-time md5 $testsrc 
-echo script copy time:
-time while [ $x -le $num_writers ]; do
+while [ $x -le $num_writers ]; do
     w="$w $testdir/$x"
-    cp $testsrc $testdir/$x
     x=$((x+1))
 done
 
 echo
-echo mcp time:
 cat $testsrc | pv -s `stat -f %z $testsrc` | time ../mcp -hf - $w
 verify $testdir $num_writers
 rm -rf "$testdir"
