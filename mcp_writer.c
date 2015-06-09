@@ -83,36 +83,37 @@ int exists(const char *filename)
        
 int writeFromBuf(mcp_writer_t *self, int bufId) 
 {
-    logDebug("\twriter %d about to wait for BUF %d barrier\n", self->tid, bufId);
+    int retval;
+    logDebug("%s about to wait for BUF %d barrier\n", self->meta, bufId);
 
-    if (-1 == pthread_barrier_waitcancel(&self->mr->barrier[bufId], &exitFlag)) {
-        logError("writer %d: something went horribly wrong with pthread_barrier_waitcancel\n", 
-            self->tid);
+    if (-1 == pthread_barrier_waitcancel(&self->mr->barrier[bufId], &exitFlag, self->meta)) {
+        logError("%s: something went horribly wrong with pthread_barrier_waitcancel\n", 
+            self->meta);
         exitFlag = 1;
-        return -1;
+        return(-1);
     }
 
-    logDebug("\twriter %d done waiting for BUF %d barrier\n", self->tid, bufId);
+    logDebug("%s done waiting for BUF %d barrier\n", self->meta, bufId);
 
     if (exitFlag) {
-        logDebug("\twriter %d told to shut down\n", self->tid);
-        return 0;
+        logDebug("%s told to shut down\n", self->meta);
+        return(0);
     }
 
+    logDebug("%s has %d more bytes to write\n", self->meta, self->mr->bufBytes[bufId]);
     if (self->mr->bufBytes[bufId] == 0 ) {
-        logDebug("\twriter %d has no more data\n", self->tid);
-        return 0;
+        logDebug("%s has no more data\n", self->meta);
+        return(0);
     }
 
     if (self->mr->bufBytes[bufId] != fwrite(self->mr->buf[bufId], 1, self->mr->bufBytes[bufId], self->stream)) {
         exitFlag = 1;
-        logError("writer %d failed to write %ld bytes from BUF %d\n", 
-            self->tid, self->mr->bufBytes[bufId], bufId);
-        return -1;
+        logError("%s failed to write %ld bytes from BUF %d\n", 
+            self->meta, self->mr->bufBytes[bufId], bufId);
+        return(-1);
     }
-    logDebug("\twriter %d wrote %ld bytes from BUF %d\n", self->tid, self->mr->bufBytes[bufId], bufId);
-
-    return 1;
+    logDebug("%s wrote %ld bytes from BUF %d\n", self->meta, self->mr->bufBytes[bufId], bufId);
+    return(1);
 }
 
 void *startWriter(void *arg)
@@ -124,9 +125,11 @@ void *startWriter(void *arg)
 
     assert (arg);
     mcp_writer_t *self = (mcp_writer_t *)arg;
+    
+    // craft a little barnacle to stick onto the front of our log messages
+    asprintf(&self->meta, "\t\t\t\t\t\twriter %d", self->tid);
 
-    logDebug("\twriter %d:  launching with target %s\n", 
-       self->tid, self->filename);
+    logDebug("%s launching with target %s\n", self->meta, self->filename);
 
 evaluate_destination:
     if (exists(self->filename)) {
@@ -134,7 +137,7 @@ evaluate_destination:
             // if the destination is a directory, rename the
             // destination file to be the destination directory
             // concatenated with the source file name.
-            logDebug("renaming dest file from dir: %s and dest file:%s\n",
+            logDebug("%s renaming dest file from dir: %s and dest file:%s\n", self->meta,
                     self->filename, self->mr->filename);
             if (-1 != (retval = asprintf(&self->filename, "%s/%s", 
                     self->filename, self->mr->filename))) {
@@ -151,12 +154,10 @@ evaluate_destination:
             exitFlag = 1;
             goto thread_exit;
         }
-        logDebug("\twriter %d: overwriting destination file %s\n",
-           self->tid, self->filename);
+        logDebug("%s overwriting destination file %s\n", self->meta, self->filename);
     }
     else {
-        logDebug("\twriter %d: destination file %s does not exist\n",
-           self->tid, self->filename);
+        logDebug("%s destination file %s does not exist\n", self->meta, self->filename);
 
         // file doesn't exist, let's check the parent dir
         // unfortunately, dirname is not reentrant
@@ -174,8 +175,7 @@ evaluate_destination:
 
         if (!exists(parentDir)) {
             if (createParents) {
-                logDebug("\twriter %d: creating missing parent dir: %s\n",
-                   self->tid, parentDir);
+                logDebug("%s creating missing parent dir: %s\n", self->meta, parentDir);
                 if (-1 == (retval = _mkdir(parentDir))) {
                     logError("Failed to create parent directory %s: %s\n", 
                         parentDir, strerror(errno));
@@ -183,8 +183,7 @@ evaluate_destination:
                     goto thread_exit;
                 }
                 if (exists(parentDir)) {
-                    logDebug("\twriter %d:  created missing parent dir: %s\n",
-                       self->tid, parentDir);
+                    logDebug("%s created missing parent dir: %s\n", self->meta, parentDir);
                 }
                 else {
                     retval = -1;
@@ -203,17 +202,16 @@ evaluate_destination:
         }
     }
 
-    logDebug("\twriter %d opening %s for writing\n", 
-        self->tid, self->filename);
+    logDebug("%s opening %s for writing\n",  self->meta, self->filename);
 
     if (NULL == (self->stream = fopen (self->filename, "w+"))) {
-        logError("writer %d could not open %s for writing: %s\n", 
-            self->tid, self->filename, strerror(errno));
+        logError("%s could not open %s for writing: %s\n", 
+            self->meta, self->filename, strerror(errno));
         retval = -1;
         exitFlag = 1;
         goto thread_exit;
     }
-   
+
     // so long as we believe there is more data, keep 
     // writing from the next buffer to the stream
     while (1 == (retval = writeFromBuf(self, bufId))) 
@@ -228,7 +226,7 @@ thread_exit:
         free(parentDir);
         parentDir=NULL;
     }
-    logDebug("\twriter %d exiting with status %ld\n", self->tid, retval);
+    logDebug("%s exiting with status %ld\n", self->meta, retval);
     pthread_exit((void*) retval);
 }
 

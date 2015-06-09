@@ -10,8 +10,8 @@
 #endif
 #include "pthread_barrier_ext.h"
 
-#define PAGESIZE                4096
-#define BUFSIZE                 1024 * PAGESIZE
+#define PAGESIZE                4096 
+#define BUFSIZE                 64 * PAGESIZE
 #define NUMBUF                  2
 
 #define BUF_A                   0
@@ -44,6 +44,7 @@ typedef struct mcp_reader_t {
 
 typedef struct mcp_writer_t {
     char                *filename;
+    char                *meta;
     pthread_t           thread;
     unsigned            tid;
     int                 forceOverwrite;

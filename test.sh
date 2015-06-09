@@ -12,7 +12,7 @@ fi
 
 size_in_kb=$((size_in_mb * 1024))
 testdir=`mktemp -d ./testdir.XXXXXXX`
-testsrc=$testdir/source
+testsrc=$testdir/0
 echo creating a $size_in_mb MB test file
 time dd if=/dev/urandom count=$size_in_kb bs=1024 2> /dev/null | pv -s $((size_in_kb * 1024)) > $testsrc
 
@@ -21,30 +21,30 @@ function verify()
     pushd $1 > /dev/null 2>&1
     count=$2
     
-    x=0
-    while [ $x -lt $count ]; do
-        x=$((x+1))
-        cmp source $x
+    x=1
+    while [ $x -le $count ]; do
+        cmp 0 $x
         if [ $? -ne 0 ]; then
             echo COMPARISON FAILURE!
             exit 1
         fi
+        x=$((x+1))
     done
     echo test successful.
     popd > /dev/null 2>&1
 }
 
 echo copying test file to $num_writers destinations
-x=0
+x=1
 w=""
 echo
 echo script hash time:
 time md5 $testsrc 
 echo script copy time:
-time while [ $x -lt $num_writers ]; do
+time while [ $x -le $num_writers ]; do
     w="$w $testdir/$x"
-    x=$((x+1))
     cp $testsrc $testdir/$x
+    x=$((x+1))
 done
 
 echo

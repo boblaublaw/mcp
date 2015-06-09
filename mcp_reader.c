@@ -59,9 +59,9 @@ int readIntoBuf(mcp_reader_t *mr, int bufId)
     assert(mr);
     assert(mr->source);
 
-    logDebug("file reader about to read into BUF %d\n", bufId);
+    logDebug("reader about to try to read %d into BUF %d\n", BUFSIZE, bufId);
 
-    if (-1 == (mr->bufBytes[bufId]  = fread(mr->buf[bufId], 1, PAGESIZE, mr->source))) {
+    if (-1 == (mr->bufBytes[bufId]  = fread(mr->buf[bufId], 1, BUFSIZE, mr->source))) {
         logError("failed to read from %s: %s\n", mr->filename, strerror(errno));
         exitFlag = 1;
         return -1;
@@ -70,24 +70,24 @@ int readIntoBuf(mcp_reader_t *mr, int bufId)
     if (mr->hashFiles && mr->bufBytes[bufId])
         CC_MD5_Update(&mr->md5state, mr->buf[bufId], mr->bufBytes[bufId]);
 
-    logDebug("file reader read %ld bytes into BUF %d\n", mr->bufBytes[bufId], bufId);
-    logDebug("file reader about to wait for BUF %d barrier\n", bufId);
+    logDebug("reader read %ld bytes into BUF %d\n", mr->bufBytes[bufId], bufId);
+    logDebug("reader about to wait for BUF %d barrier\n", bufId);
 
-    if (-1 == pthread_barrier_waitcancel(&mr->barrier[bufId], &exitFlag)) {
+    if (-1 == pthread_barrier_waitcancel(&mr->barrier[bufId], &exitFlag, "reader")) {
         logError("reader: Something went horribly wrong with pthread_barrier_waitcancel\n");
         exitFlag=1;
         return -1;
     }
 
-    logDebug("file reader done waiting for BUF %d barrier\n", bufId);
+    logDebug("reader done waiting for BUF %d barrier\n", bufId);
         
     if (exitFlag) {
-        logDebug("file reader told to shut down by another thread\n");
+        logDebug("reader told to shut down by another thread\n");
         return 0;
     }
 
     if (mr->bufBytes[bufId] == 0) {
-        logDebug("file reader ran out of data reading into BUF %d\n", bufId);
+        logDebug("reader ran out of data reading into BUF %d\n", bufId);
         return 0;
     }
     return 1;
@@ -109,24 +109,24 @@ void *startReader(void *arg)
     while(1 == (retval = readIntoBuf(mr, bufId))) 
         bufId = !bufId;
 
-    logDebug("file reader closing file\n");
+    logDebug("reader closing file\n");
 
 pthread_exit:
     if (mr->source) {
         fclose(mr->source);
         mr->source=NULL;
     }
-    logDebug("file reader closed file\n");
+    logDebug("reader closed file\n");
 
     if (!exitFlag && mr->hashFiles) {
-        logDebug("file reader hashing file\n");
+        logDebug("reader hashing file\n");
         int i;
         CC_MD5_Final(mr->md5sum, &mr->md5state);
         logDebug("md5 state is: ");
         for (i=0; i<CC_MD5_DIGEST_LENGTH; i++) 
             logDebug("%02x", mr->md5sum[i]);
     }
-    logDebug("file reader exiting\n");
+    logDebug("reader exiting\n");
     pthread_exit((void*) retval);
 }
 
