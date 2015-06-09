@@ -4,6 +4,7 @@
 
 #include "log.h"
 #include "copyfile.h"
+#include "copydir.h"
 
 #ifdef __APPLE__
 #include "pthread_barrier.h"
