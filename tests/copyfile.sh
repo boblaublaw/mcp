@@ -18,24 +18,12 @@ time dd if=/dev/urandom count=$size_in_kb bs=1024 2> /dev/null | pv -s $((size_i
 
 function verify()
 {
-    pushd $1 > /dev/null 2>&1
-    count=$2
-    
-    x=1
-    while [ $x -le $count ]; do
-        md5 $x
-        if [ -f "$x.md5" ] ; then 
-            cat $x.md5  
-        fi
-        cmp 0 $x
-        if [ $? -ne 0 ]; then
-            echo COMPARISON FAILURE!
-            exit 1
-        fi
-        x=$((x+1))
-    done
-    echo test successful.
-    popd > /dev/null 2>&1
+    # create a source file hash
+    md5 $1/0 | cut -f2 -d\= | cut -c2- > $1/0.md5
+    # check source and dest file hashes
+    ./checkmd5.sh $1 && return
+    echo COPYFILE FAILED
+    exit 1
 }
 
 echo copying test file to $num_writers destinations
@@ -53,7 +41,7 @@ done
 
 echo
 echo mcp time:
-cat $testsrc | pv -s `stat -f %z $testsrc` | time ./mcp -hf - $w
+cat $testsrc | pv -s `stat -f %z $testsrc` | time ../mcp -hf - $w
 verify $testdir $num_writers
 rm -rf "$testdir"
 
