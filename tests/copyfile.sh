@@ -23,6 +23,10 @@ function verify()
     
     x=1
     while [ $x -le $count ]; do
+        md5 $x
+        if [ -f "$x.md5" ] ; then 
+            cat $x.md5  
+        fi
         cmp 0 $x
         if [ $? -ne 0 ]; then
             echo COMPARISON FAILURE!
