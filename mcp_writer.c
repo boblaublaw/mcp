@@ -84,35 +84,35 @@ int exists(const char *filename)
 int writeFromBuf(mcp_writer_t *self, int bufId) 
 {
     int retval;
-    logDebug("%s about to wait for BUF %d barrier\n", self->meta, bufId);
+    logDebug("%s about to wait for BUF %d barrier\n", self->desc, bufId);
 
-    if (-1 == pthread_barrier_waitcancel(&self->mr->barrier[bufId], &exitFlag, self->meta)) {
+    if (-1 == pthread_barrier_waitcancel(&self->mr->barrier[bufId], &exitFlag, self->desc)) {
         logError("%s: something went horribly wrong with pthread_barrier_waitcancel\n", 
-            self->meta);
+            self->desc);
         exitFlag = 1;
         return(-1);
     }
 
-    logDebug("%s done waiting for BUF %d barrier\n", self->meta, bufId);
+    logDebug("%s done waiting for BUF %d barrier\n", self->desc, bufId);
 
     if (exitFlag) {
-        logDebug("%s told to shut down\n", self->meta);
+        logDebug("%s told to shut down\n", self->desc);
         return(0);
     }
 
-    logDebug("%s has %d more bytes to write\n", self->meta, self->mr->bufBytes[bufId]);
+    logDebug("%s has %d more bytes to write\n", self->desc, self->mr->bufBytes[bufId]);
     if (self->mr->bufBytes[bufId] == 0 ) {
-        logDebug("%s has no more data\n", self->meta);
+        logDebug("%s has no more data\n", self->desc);
         return(0);
     }
 
     if (self->mr->bufBytes[bufId] != fwrite(self->mr->buf[bufId], 1, self->mr->bufBytes[bufId], self->stream)) {
         exitFlag = 1;
         logError("%s failed to write %ld bytes from BUF %d\n", 
-            self->meta, self->mr->bufBytes[bufId], bufId);
+            self->desc, self->mr->bufBytes[bufId], bufId);
         return(-1);
     }
-    logDebug("%s wrote %ld bytes from BUF %d\n", self->meta, self->mr->bufBytes[bufId], bufId);
+    logDebug("%s wrote %ld bytes from BUF %d\n", self->desc, self->mr->bufBytes[bufId], bufId);
     return(1);
 }
 
@@ -127,9 +127,9 @@ void *startWriter(void *arg)
     mcp_writer_t *self = (mcp_writer_t *)arg;
     
     // craft a little barnacle to stick onto the front of our log messages
-    asprintf(&self->meta, "\t\t\t\t\t\twriter %d", self->tid);
+    asprintf(&self->desc, "\t\t\t\t\t\twriter %d", self->tid);
 
-    logDebug("%s launching with target %s\n", self->meta, self->filename);
+    logDebug("%s launching with target %s\n", self->desc, self->filename);
 
 evaluate_destination:
     if (exists(self->filename)) {
@@ -137,7 +137,7 @@ evaluate_destination:
             // if the destination is a directory, rename the
             // destination file to be the destination directory
             // concatenated with the source file name.
-            logDebug("%s renaming dest file from dir: %s and dest file:%s\n", self->meta,
+            logDebug("%s renaming dest file from dir: %s and dest file:%s\n", self->desc,
                     self->filename, self->mr->filename);
             if (-1 != (retval = asprintf(&self->filename, "%s/%s", 
                     self->filename, self->mr->filename))) {
@@ -154,10 +154,10 @@ evaluate_destination:
             exitFlag = 1;
             goto thread_exit;
         }
-        logDebug("%s overwriting destination file %s\n", self->meta, self->filename);
+        logDebug("%s overwriting destination file %s\n", self->desc, self->filename);
     }
     else {
-        logDebug("%s destination file %s does not exist\n", self->meta, self->filename);
+        logDebug("%s destination file %s does not exist\n", self->desc, self->filename);
 
         // file doesn't exist, let's check the parent dir
         // unfortunately, dirname is not reentrant
@@ -175,7 +175,7 @@ evaluate_destination:
 
         if (!exists(parentDir)) {
             if (createParents) {
-                logDebug("%s creating missing parent dir: %s\n", self->meta, parentDir);
+                logDebug("%s creating missing parent dir: %s\n", self->desc, parentDir);
                 if (-1 == (retval = _mkdir(parentDir))) {
                     logError("Failed to create parent directory %s: %s\n", 
                         parentDir, strerror(errno));
@@ -183,7 +183,7 @@ evaluate_destination:
                     goto thread_exit;
                 }
                 if (exists(parentDir)) {
-                    logDebug("%s created missing parent dir: %s\n", self->meta, parentDir);
+                    logDebug("%s created missing parent dir: %s\n", self->desc, parentDir);
                 }
                 else {
                     retval = -1;
@@ -202,11 +202,11 @@ evaluate_destination:
         }
     }
 
-    logDebug("%s opening %s for writing\n",  self->meta, self->filename);
+    logDebug("%s opening %s for writing\n",  self->desc, self->filename);
 
     if (NULL == (self->stream = fopen (self->filename, "w+"))) {
         logError("%s could not open %s for writing: %s\n", 
-            self->meta, self->filename, strerror(errno));
+            self->desc, self->filename, strerror(errno));
         retval = -1;
         exitFlag = 1;
         goto thread_exit;
@@ -226,7 +226,7 @@ thread_exit:
         free(parentDir);
         parentDir=NULL;
     }
-    logDebug("%s exiting with status %ld\n", self->meta, retval);
+    logDebug("%s exiting with status %ld\n", self->desc, retval);
     pthread_exit((void*) retval);
 }
 

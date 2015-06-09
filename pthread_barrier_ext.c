@@ -14,7 +14,10 @@
 //          thread was not the last to reach the barrier.
 //      ETIMEDOUT: abstime was reached
 //      ...: others?
-int pthread_barrier_timedwait(pthread_barrier_t *barrier, const struct timespec *restrict abstime, const char *meta)
+int pthread_barrier_timedwait(
+            pthread_barrier_t *barrier, 
+            const struct timespec *restrict abstime, 
+            const char *desc)
 {
     int retval = 0;
 
@@ -28,7 +31,7 @@ int pthread_barrier_timedwait(pthread_barrier_t *barrier, const struct timespec 
     }
     else if(barrier->count == barrier->tripCount)
     {
-        logDebug2("%s this thread is the last thread to arrive\n", meta);
+        logDebug2("%s this thread is the last thread to arrive\n", desc);
         // start the counter over
         barrier->count = 0;
         // wake up the others
@@ -37,18 +40,18 @@ int pthread_barrier_timedwait(pthread_barrier_t *barrier, const struct timespec 
     }
     else
     {
-        logDebug2("%s not everyone is here yet, let's wait\n", meta);
+        logDebug2("%s not everyone is here yet, let's wait\n", desc);
         retval =  pthread_cond_timedwait(&barrier->cond, &(barrier->mutex), abstime);
         if (retval == ETIMEDOUT) {
-            logDebug2("%s wait timer exceeded. putting count back and giving up\n", meta);
+            logDebug2("%s wait timer exceeded. putting count back and giving up\n", desc);
             // put the count back the way we found it
             --(barrier->count);
         }
         else if (retval == PTHREAD_BARRIER_NOT_LAST) {
-            logDebug("%s someone else was last\n", meta);
+            logDebug("%s someone else was last\n", desc);
         }
         else {
-            logError("%s unexpected result from pthread_cond_timedwait: %d\n", meta, retval);
+            logError("%s unexpected result from pthread_cond_timedwait: %d\n", desc, retval);
         }
     }
 
@@ -57,7 +60,7 @@ int pthread_barrier_timedwait(pthread_barrier_t *barrier, const struct timespec 
 }
 
 // wait until barrier satisfied or X seconds have passed
-int pthread_barrier_waitseconds(pthread_barrier_t *barrier, const int seconds, const char *meta)
+int pthread_barrier_waitseconds(pthread_barrier_t *barrier, const int seconds, const char *desc)
 {
         struct timeval tv;
         struct timespec ts;
@@ -69,7 +72,7 @@ int pthread_barrier_waitseconds(pthread_barrier_t *barrier, const int seconds, c
         ts.tv_sec = tv.tv_sec + seconds;
         ts.tv_nsec = 0;
 
-        return (pthread_barrier_timedwait(barrier, &ts, meta));
+        return (pthread_barrier_timedwait(barrier, &ts, desc));
 }
 
 // this function will wait for a condition variable or a exitFlag variable
@@ -78,28 +81,28 @@ int pthread_barrier_waitseconds(pthread_barrier_t *barrier, const int seconds, c
 //      1  indicates the barrier was satisfied
 //      0   indicates the barrier was asked to cancel
 //      -1  indicates some other problem
-int pthread_barrier_waitcancel(pthread_barrier_t *barrier, int *exitFlag, const char *meta)
+int pthread_barrier_waitcancel(pthread_barrier_t *barrier, int *exitFlag, const char *desc)
 {
     long int retval = 0;
 
     while (1) {
-        retval = pthread_barrier_waitseconds(barrier, 1, meta);
+        retval = pthread_barrier_waitseconds(barrier, 1, desc);
         switch (retval) {
             case PTHREAD_BARRIER_NOT_LAST:
             case PTHREAD_BARRIER_LAST:
-                logDebug2("%s thread barrier reached\n", meta);
+                logDebug2("%s thread barrier reached\n", desc);
                 return 0;
             case ETIMEDOUT:
                 if (*exitFlag) {
-                    logDebug2("%s thread being asked to cancel\n", meta);
+                    logDebug2("%s thread being asked to cancel\n", desc);
                     return 0;
                 }
                 else {
-                    logDebug2("%s timeout reached but no need to cancel\n", meta);
+                    logDebug2("%s timeout reached but no need to cancel\n", desc);
                 }
                 break;
             default:
-                logError("%s unexpected pthread_barrier_wait error: %ld\n", meta, retval);
+                logError("%s unexpected pthread_barrier_wait error: %ld\n", desc, retval);
                 *exitFlag = 1;
                 return -1;
         }

@@ -44,7 +44,7 @@ typedef struct mcp_reader_t {
 
 typedef struct mcp_writer_t {
     char                *filename;
-    char                *meta;
+    char                *desc;
     pthread_t           thread;
     unsigned            tid;
     int                 forceOverwrite;
