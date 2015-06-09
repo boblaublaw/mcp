@@ -1,9 +1,18 @@
 #include "mcp.h"
-#include <pthread.h>
 #include <strings.h>                // bzero
 #include <sys/time.h>               // gettimeofday
 
+// These functions extend the pthread_barrier_t calls to 
+// provide timeout and cancellation functionality.
+
 // wait until barrier satisfied or an absolute time has passed
+// returns:
+//      PTHREAD_BARRIER_LAST: barrier is satisfied, this
+//          thread was the last to reach the barrier.
+//      PTHREAD_BARRIER_NOT_LAST: barrier is satisfied, this
+//          thread was not the last to reach the barrier.
+//      ETIMEDOUT: abstime was reached
+//      ...: others?
 int pthread_barrier_timedwait(pthread_barrier_t *barrier, const struct timespec *restrict abstime)
 {
     int retval = 0;
@@ -15,7 +24,7 @@ int pthread_barrier_timedwait(pthread_barrier_t *barrier, const struct timespec 
         barrier->count = 0;
         pthread_cond_broadcast(&barrier->cond);
         pthread_mutex_unlock(&barrier->mutex);
-        return 1;
+        return PTHREAD_BARRIER_LAST;
     }
     else
     {
@@ -25,7 +34,7 @@ int pthread_barrier_timedwait(pthread_barrier_t *barrier, const struct timespec 
             return retval;
         }
         pthread_mutex_unlock(&barrier->mutex);
-        return 0;
+        return PTHREAD_BARRIER_NOT_LAST;
     }
 }
 
@@ -48,30 +57,31 @@ int pthread_barrier_waitseconds(pthread_barrier_t *barrier, const int seconds)
 
 // this function will wait for a condition variable or a exitFlag variable
 // to be set.
-//  0 or 1 indicate the barrier was satisfied, -1 is a problem or exitFlaglation
+// return codes:
+//      1  indicates the barrier was satisfied
+//      0   indicates the barrier was asked to cancel
+//      -1  indicates some other problem
 int pthread_barrier_waitcancel(pthread_barrier_t *barrier, int *exitFlag)
 {
     long int retval = 0;
 
-    logDebug2("about to start wait loop\n");
-
     do {
-        logDebug2("wait loop start\n");
         // check on this once per second
         retval = pthread_barrier_waitseconds(barrier, 5);
         logDebug2("wait over: %ld\n", retval);
         switch (retval) {
             case PTHREAD_BARRIER_NOT_LAST:
             case PTHREAD_BARRIER_LAST:
-                break;
+                return 0;
                 ;;
             case ETIMEDOUT:
                 if (*exitFlag) {
-                    logDebug2("thread already exitFlagled\n");
+                    logDebug2("thread being asked to cancel\n");
+                    return 0;
                 }
                 else {
-                    *exitFlag=1;
-                    logDebug2("pthread barrier timed out. exitFlagling thread.\n");
+                    logDebug2("timeout reached but no need to cancel");
+                    retval=0;
                 }
                 return retval;
                 ;;
@@ -81,11 +91,5 @@ int pthread_barrier_waitcancel(pthread_barrier_t *barrier, int *exitFlag)
                 return -1;
                 ;;
         }
-        logDebug2("wait loop end\n");
     } while ( (retval != PTHREAD_BARRIER_NOT_LAST) && (retval != PTHREAD_BARRIER_LAST) );
-
-    // outside of this thread, we dont need to know if this was the last 
-    // thread to reach the barrier so we discard PTHREAD_BARRIER_NOT_LAST
-    // and PTHREAD_BARRIER_LAST.
-    return 0;
 }

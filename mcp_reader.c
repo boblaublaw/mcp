@@ -58,7 +58,6 @@ int readIntoBuf(mcp_reader_t *mr, int bufId)
 {
     assert(mr);
     assert(mr->source);
-    int retval;
 
     logDebug("file reader about to read into BUF %d\n", bufId);
 
@@ -74,18 +73,8 @@ int readIntoBuf(mcp_reader_t *mr, int bufId)
     logDebug("file reader read %ld bytes into BUF %d\n", mr->bufBytes[bufId], bufId);
     logDebug("file reader about to wait for BUF %d barrier\n", bufId);
 
-    if (-1 == (retval = pthread_barrier_waitcancel(&mr->barrier[bufId], &exitFlag))) {
-        if (!exitFlag) {
-            logDebug("file reader failed to wait for BUF %d barrier\n", bufId);
-        }
-        exitFlag=1;
-        return -1;
-    }
-
-    if (retval == ETIMEDOUT) {
-        if (!exitFlag) {
-            logDebug("file reader timed out on BUF %d\n", bufId);
-        }
+    if (-1 == pthread_barrier_waitcancel(&mr->barrier[bufId], &exitFlag)) {
+        logError("reader: Something went horribly wrong with pthread_barrier_waitcancel\n");
         exitFlag=1;
         return -1;
     }

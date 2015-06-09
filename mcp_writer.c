@@ -83,24 +83,11 @@ int exists(const char *filename)
        
 int writeFromBuf(mcp_writer_t *self, int bufId) 
 {
-    int retval;
-
     logDebug("\twriter %d about to wait for BUF %d barrier\n", self->tid, bufId);
 
-    if (-1 == (retval = pthread_barrier_waitcancel(&self->mr->barrier[bufId], &exitFlag))) {
-        if (!exitFlag) {
-            logDebug("writer %d: failed to wait for BUF %d barrier: %ld\n", 
-                self->tid, bufId, retval);
-        }
-        exitFlag = 1;
-        return -1;
-    }
-
-    if (retval == ETIMEDOUT) {
-        if (!exitFlag) {
-            logDebug("writer %d: timed out waiting for BUF %d barrier\n", 
-                self->tid, bufId);
-        }
+    if (-1 == pthread_barrier_waitcancel(&self->mr->barrier[bufId], &exitFlag)) {
+        logError("writer %d: something went horribly wrong with pthread_barrier_waitcancel\n", 
+            self->tid);
         exitFlag = 1;
         return -1;
     }
