@@ -198,6 +198,7 @@ evaluate_destination:
                 logError("destination directory %s does not exist, -p to create parents\n",
                     parentDir);
                 exitFlag = 1;
+                goto thread_exit;
             }
         }
     }
@@ -205,8 +206,8 @@ evaluate_destination:
     logDebug("%s opening %s for writing\n",  self->desc, self->filename);
 
     if (NULL == (self->stream = fopen (self->filename, "w+"))) {
-        logError("%s could not open %s for writing: %s\n", 
-            self->desc, self->filename, strerror(errno));
+        logError("could not open %s for writing: %s\n", 
+            self->filename, strerror(errno));
         retval = -1;
         exitFlag = 1;
         goto thread_exit;
