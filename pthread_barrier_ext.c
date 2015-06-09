@@ -86,7 +86,7 @@ int pthread_barrier_waitcancel(pthread_barrier_t *barrier, int *exitFlag, const 
     long int retval = 0;
 
     while (1) {
-        retval = pthread_barrier_waitseconds(barrier, 1, desc);
+        retval = pthread_barrier_waitseconds(barrier, PTHREAD_POLL_SECONDS, desc);
         switch (retval) {
             case PTHREAD_BARRIER_NOT_LAST:
             case PTHREAD_BARRIER_LAST:
