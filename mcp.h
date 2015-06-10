@@ -5,6 +5,7 @@
 #include "log.h"
 #include "copyfile.h"
 #include "copydir.h"
+#include "queue.h"
 
 #ifdef __APPLE__
 #include "pthread_barrier.h"
@@ -54,6 +55,15 @@ typedef struct mcp_writer_t {
     mcp_reader_t        *mr;
     FILE                *stream;
 } mcp_writer_t;
+
+typedef struct dir_mgr_t 
+{
+    int         argc;
+    char        **argv;
+    queue_t     q;
+    int         exitFlag;
+    pthread_t   t[MCP_FILE_READERS];
+} dir_mgr_t;
 
 // function prototypes:
 void *startWriter(void *);

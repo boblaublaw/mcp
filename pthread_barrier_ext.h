@@ -4,4 +4,3 @@
 #define PTHREAD_POLL_MSEC           250
 
 int pthread_barrier_waitcancel(pthread_barrier_t *barrier, int *exitFlag, const char *desc);
-int pthread_cond_timedwaitseconds(pthread_cond_t *restrict cond, pthread_mutex_t *restrict mutex, int seconds);

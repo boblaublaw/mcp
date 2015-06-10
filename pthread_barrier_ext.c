@@ -109,17 +109,3 @@ int pthread_barrier_waitcancel(pthread_barrier_t *barrier, int *exitFlag, const 
     } 
 }
 
-int pthread_cond_timedwaitseconds(pthread_cond_t *restrict cond, pthread_mutex_t *restrict mutex, int msec)
-{
-    struct timeval tv;
-    struct timespec ts;
-
-    bzero(&tv, sizeof(tv));
-    bzero(&ts, sizeof(ts));
-
-    gettimeofday(&tv, NULL);
-    ts.tv_sec = tv.tv_sec;
-    ts.tv_nsec = msec * 1000000;
-
-    return(pthread_cond_timedwait(cond, mutex, &ts));
-}
