@@ -12,5 +12,5 @@ usage():
 	-h: create hash files for every source file
 	-p: create parent directories where needed
 	-v: increase verbosity (vv, vvv, etc)
-
+ 
 Build has only been tested on OS 10.9.5
