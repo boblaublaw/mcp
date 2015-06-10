@@ -62,12 +62,13 @@ typedef struct dir_mgr_t
     char        **argv;
     queue_t     q;
     int         exitFlag;
+    char        *srcRoot;
     pthread_t   t[MCP_FILE_READERS];
 } dir_mgr_t;
 
 // function prototypes:
 void *startWriter(void *);
-int initReader(mcp_reader_t *mr, const char *filename, int count, int hashFiles);
+mcp_reader_t *initReader(const char *filename, int writerCount, int hashFiles);
 void *startReader(void *);
 int writeHashFile(const char *basename, unsigned char *md5sum);
 

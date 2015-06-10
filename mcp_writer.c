@@ -18,6 +18,7 @@ int _mkdir(const char *dir) {
     size_t len;
     int retval;
 
+    logDebug("making sure %s is all there\n", dir);
     snprintf(tmp, sizeof(tmp),"%s",dir);
     len = strlen(tmp);
     if(tmp[len - 1] == '/') {
@@ -27,9 +28,14 @@ int _mkdir(const char *dir) {
         if(*p == '/') {
             *p = 0;
             if (-1 == (retval = mkdir(tmp, S_IRWXU))) {
-                logError("Could not create directory %s: %s\n",
-                    tmp, strerror(errno));
-                return retval;
+                if (errno == EEXIST) {
+                    logDebug("parent already in place :%s\n", tmp);
+                }
+                else  {
+                    logError("Could not create parent directory %s: %s (%d)\n",
+                        tmp, strerror(errno), errno);
+                    return retval;
+                }
             }
             *p = '/';
         }

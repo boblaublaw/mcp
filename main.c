@@ -80,14 +80,14 @@ int main(int argc, char **argv)
 
     if (0 == strcmp("-",source)) {
         logDebug("source is stdin\n");
-        retval = copyFile(source, argc, argv);
+        retval = copyFile(source, argc, argv, NULL);
     }
     else if( 0 != (retval = stat(source,&sb))) {
         logFatal("Couldn't determine file type for %s: %s\n", source, strerror(errno));
     }
     else if (sb.st_mode & S_IFREG) {
         logDebug("source is a file: %s\n", source);
-        retval = copyFile(source, argc, argv);
+        retval = copyFile(source, argc, argv, NULL);
     }
     else if (sb.st_mode & S_IFDIR) {
         logDebug("source is a directory: %s\n", source);

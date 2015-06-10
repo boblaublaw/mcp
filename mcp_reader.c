@@ -8,12 +8,12 @@
 
 #include "mcp.h"
 
-int initReader(mcp_reader_t *mr, const char *filename, int writerCount, int hashFiles)
+mcp_reader_t *initReader(const char *filename, int writerCount, int hashFiles)
 {
     assert(filename);
-    assert(mr);
-    int i;
+    int i, fail=0;
     int threadCount = writerCount + 1;
+    mcp_reader_t *mr = malloc(sizeof(mcp_reader_t));
 
     bzero(mr, sizeof(mcp_reader_t));
 
@@ -28,24 +28,40 @@ int initReader(mcp_reader_t *mr, const char *filename, int writerCount, int hash
     }
     else if (NULL == (mr->source = fopen(filename,"r"))) {
         logError("Could not open %s: %s\n", filename, strerror(errno));
-        return -1;
+        fail=1;
+        goto cleanup;
     }
 
     // initialize sync structures
     for (i=0; i < NUMBUF; i++) {
         logDebug("initializing BUF %c barrier for %d threads\n", 
             (i ? 'B' : 'A'), threadCount);
-        if (0 != pthread_barrier_init(&mr->barrier[i], NULL, threadCount))
-            return -1;
+        if (0 != pthread_barrier_init(&mr->barrier[i], NULL, threadCount)) {
+            logError("could not initialize the barrier\n");
+            fail=1;
+            goto cleanup;
+        }
     }
 
     // initialize hashing state structure 
     mr->hashFiles=hashFiles;
-    if (hashFiles) 
-        if (1 != CC_MD5_Init(&mr->md5state))
-            return -1;
+    if (hashFiles) {
+        if (1 != CC_MD5_Init(&mr->md5state)) {
+            fail=1;
+            goto cleanup;
+        }
+    }
 
-    return 0;
+cleanup:
+    if (fail) {
+        if (mr->source) {
+            fclose(mr->source);
+            mr->source=NULL;
+        }
+        free(mr);
+        mr=NULL;
+    }
+    return mr;
 }
 
 //  return codes:

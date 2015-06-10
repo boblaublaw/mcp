@@ -20,9 +20,10 @@ void *directoryWorker(void *arg)
 
     while (!self->exitFlag) {
         if (queue_get(&self->q, &sourceFile)) {
-            logInfo("about to copy source file %s\n", sourceFile);
-            retval = copyFile(sourceFile, self->argc, self->argv);
-            logInfo("copied source file %s with retval %ld\n", sourceFile, retval);
+            logDebug("about to copy source file %s\n", sourceFile);
+            
+            retval = copyFile(sourceFile, self->argc, self->argv, &sourceFile[(strlen(self->srcRoot)+1)]);
+            logDebug("copied source file %s with retval %ld\n", sourceFile, retval);
             free(sourceFile);
             sourceFile=NULL;
         }
@@ -35,9 +36,9 @@ void *directoryWorker(void *arg)
 
 int wrapper(const char * fpath, const struct stat *sb, int typeflag, struct FTW *ftwbuf) 
 {
+    // only handle files (TODO - is this right?)
     if (typeflag != FTW_F)
         return 0;
-    //printf("File base %d level %d: %s\n", ftwbuf->base, ftwbuf->level, fpath);
     queue_add(&d.q, fpath);
     return(0);
 } 
@@ -53,6 +54,7 @@ int copyDirectory(const char *source, int argc, char **argv)
     queue_init(&d.q);
     d.argc=argc;
     d.argv=argv;
+    d.srcRoot=strdup(source);
     d.exitFlag=0;
     
     for (i=0; i<MCP_FILE_READERS; i++) {
