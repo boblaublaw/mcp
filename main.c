@@ -23,21 +23,34 @@ void usage(long retval)
     logInfo("mcp usage:\n");
     logInfo("\n");
     logInfo("mcp <options> Source Destination1 [ DestinationN ] ...\n");
-    logInfo("\tThe Source can be a file or directory.\n");
-    logInfo("\tIf the Source is a file, the Destinations may also be files or directories.\n");
-    logInfo("\tIf the Source is a directory, the Destinations must be directories.\n");
     logInfo("\n");
     logInfo("options:\n");
     logInfo("\t-f: force overwrite destination file\n");
     logInfo("\t-h: create hash files for every source file\n");
     logInfo("\t-p: create parent directories where needed\n");
     logInfo("\t-v: increase verbosity (vv, vvv, etc)\n");
+    logInfo("\t-?: help (add -v for more help)\n");
     logInfo("\n");
-    logInfo("Examples:\n");
-    logInfo("\tmcp sourceFile DestFile1 DestFile2\n");
-    logInfo("\tmcp sourceFile DestFile1 DestFile2\n");
-    logInfo("\tmcp sourceFile DestFile1 DestFile2\n");
-    logInfo("\n");
+    logDebug("Guidance:\n");
+    logDebug("\tThe Source can be a file or directory.\n");
+    logDebug("\n");
+    logDebug("\tIf the Source is a file, the Destinations may also be\n\t\tfiles or directories.\n");
+    logDebug("\n");
+    logDebug("\tIf the Source is a file and the Destination is a directory,\n\t\t the source file name will be created in the \n\t\tDestination directory\n");
+    logDebug("\n");
+    logDebug("\tIf the Source is a directory, the Destinations must be \n\t\tdirectories.\n");
+    logDebug("\n");
+    logDebug("Examples:\n");
+    logDebug("\tmcp sourceFile DestFile\n\t\tfile to file copy. (same as 'cp')\n");
+    logDebug("\n");
+    logDebug("\tmcp -h sourceFile DestFile\n\t\tfile to file copy with hashing\n");
+    logDebug("\n");
+    logDebug("\tmcp sourceFile DestDir           \n\t\tcreate sourceFile in DestDir\n");
+    logDebug("\n");
+    logDebug("\tmcp -p sourceFile DestDir           \n\t\tcreate sourceFile in DestDir, create DestDir if needed\n");
+    logDebug("\n");
+    logDebug("\tmcp sourceFile DestFile DestDir  \n\t\tboth at the same time\n");
+    logDebug("\n");
     exit(retval);
 }
 
@@ -56,11 +69,12 @@ int main(int argc, char **argv)
     hashFiles = 0; 
     createParents = 0;
     retval = 0;
+    int dousage=0;
 
     logInit(stderr);
 
     // parse arguments
-    while ((ch = getopt_long(argc, argv, "fhpv", longopts, NULL)) != -1)
+    while ((ch = getopt_long(argc, argv, "fhpv?", longopts, NULL)) != -1)
         switch (ch) {
             case 'f':
                 forceOverwrite = 1;
@@ -74,9 +88,14 @@ int main(int argc, char **argv)
             case 'v':
                 logIncrementVerbosity();
                 break;
+            case '?':
+                dousage=1; // do this later in case -v flags follow
+                break;
             default:
                 usage(EXIT_SUCCESS);
     }
+    if (dousage)
+        usage(0);
 
     argc -= optind;
     argv += optind;

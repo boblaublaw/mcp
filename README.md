@@ -11,20 +11,42 @@ Additionally, with the "-h flag", md5 hashes can be generated as the files are c
 mcp usage:
 
 mcp <options> Source Destination1 [ DestinationN ] ...
-	The Source can be a file or directory.
-	If the Source is a file, the Destinations may also be files or directories.
-	If the Source is a directory, the Destinations must be directories.
 
 options:
-	-f: force overwrite destination file
-	-h: create hash files for every source file
-	-p: create parent directories where needed
-	-v: increase verbosity (vv, vvv, etc)
+    -f: force overwrite destination file
+    -h: create hash files for every source file
+    -p: create parent directories where needed
+    -v: increase verbosity (vv, vvv, etc)
+    -?: help (add -v for more help)
+
+Guidance:
+    The Source can be a file or directory.
+
+    If the Source is a file, the Destinations may also be
+        files or directories.
+
+    If the Source is a file and the Destination is a directory,
+         the source file name will be created in the 
+        Destination directory
+
+    If the Source is a directory, the Destinations must be 
+        directories.
 
 Examples:
-	mcp sourceFile DestFile1 DestFile2
-	mcp sourceFile DestFile1 DestFile2
-	mcp sourceFile DestFile1 DestFile2
+    mcp sourceFile DestFile
+        file to file copy. (same as 'cp')
+
+    mcp -h sourceFile DestFile
+        file to file copy with hashing
+
+    mcp sourceFile DestDir           
+        create sourceFile in DestDir
+
+    mcp -p sourceFile DestDir           
+        create sourceFile in DestDir, create DestDir if needed
+
+    mcp sourceFile DestFile DestDir  
+        both at the same time
 ```
  
 Build has only been tested on OS 10.9.5
