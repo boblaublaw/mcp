@@ -34,7 +34,8 @@ int copyFile(const char *source, int argc, char **argv)
         retval = pthread_create(&mw->thread, &attr, startWriter, 
             (void *)mw);
         if (retval != 0 ) {
-            printf("ERROR; return code from pthread_create() is %ld\n", retval);
+            logError("ERROR; return code from pthread_create() is %ld\n", retval);
+            mw->mr->exitFlag=1;
             return retval;
         }
         argc -= 1;

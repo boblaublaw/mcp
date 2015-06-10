@@ -11,7 +11,7 @@
 #endif
 #include "pthread_barrier_ext.h"
 
-#define MCP_FILE_READERS        32
+#define MCP_FILE_READERS        10
 #define PAGESIZE                4096 
 #define BUFSIZE                 64 * PAGESIZE
 #define NUMBUF                  2

@@ -41,7 +41,7 @@ int pthread_barrier_timedwait(
     else
     {
         logDebug2("%s not everyone is here yet, let's wait\n", desc);
-        retval =  pthread_cond_timedwait(&barrier->cond, &(barrier->mutex), abstime);
+        retval =  pthread_cond_timedwait(&barrier->cond, &barrier->mutex, abstime);
         if (retval == ETIMEDOUT) {
             logDebug2("%s wait timer exceeded. putting count back and giving up\n", desc);
             // put the count back the way we found it
@@ -60,7 +60,7 @@ int pthread_barrier_timedwait(
 }
 
 // wait until barrier satisfied or X seconds have passed
-int pthread_barrier_waitseconds(pthread_barrier_t *barrier, const int seconds, const char *desc)
+int pthread_barrier_waitseconds(pthread_barrier_t *barrier, const int msec, const char *desc)
 {
         struct timeval tv;
         struct timespec ts;
@@ -69,8 +69,8 @@ int pthread_barrier_waitseconds(pthread_barrier_t *barrier, const int seconds, c
         bzero(&ts, sizeof(ts));
 
         gettimeofday(&tv, NULL);
-        ts.tv_sec = tv.tv_sec + seconds;
-        ts.tv_nsec = 0;
+        ts.tv_sec = tv.tv_sec;
+        ts.tv_nsec = msec * 1000000;
 
         return (pthread_barrier_timedwait(barrier, &ts, desc));
 }
@@ -86,7 +86,7 @@ int pthread_barrier_waitcancel(pthread_barrier_t *barrier, int *exitFlag, const 
     long int retval = 0;
 
     while (1) {
-        retval = pthread_barrier_waitseconds(barrier, PTHREAD_POLL_SECONDS, desc);
+        retval = pthread_barrier_waitseconds(barrier, PTHREAD_POLL_MSEC, desc);
         switch (retval) {
             case PTHREAD_BARRIER_NOT_LAST:
             case PTHREAD_BARRIER_LAST:
@@ -107,4 +107,19 @@ int pthread_barrier_waitcancel(pthread_barrier_t *barrier, int *exitFlag, const 
                 return -1;
         }
     } 
+}
+
+int pthread_cond_timedwaitseconds(pthread_cond_t *restrict cond, pthread_mutex_t *restrict mutex, int msec)
+{
+    struct timeval tv;
+    struct timespec ts;
+
+    bzero(&tv, sizeof(tv));
+    bzero(&ts, sizeof(ts));
+
+    gettimeofday(&tv, NULL);
+    ts.tv_sec = tv.tv_sec;
+    ts.tv_nsec = msec * 1000000;
+
+    return(pthread_cond_timedwait(cond, mutex, &ts));
 }
