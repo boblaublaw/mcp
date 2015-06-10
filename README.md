@@ -7,4 +7,10 @@ For small files, cp will probably outperform mcp.
 
 Additionally, with the "-h flag", md5 hashes can be generated as the files are copied based on the first (and only) reading of the source file.  The hash files are placed adjacent to each copied file by appending the suffix ".md5" in the desination directories.
 
+usage():
+	-f: force overwrite destination file
+	-h: create hash files for every source file
+	-p: create parent directories where needed
+	-v: increase verbosity (vv, vvv, etc)
+
 Build has only been tested on OS 10.9.5
