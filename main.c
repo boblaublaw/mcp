@@ -7,7 +7,11 @@
 #include "mcp.h"            // mcp_writer_t
 
 static struct option longopts[] = {
+    { "force-overwrite",        no_argument,            NULL,           'f' },
     { "create-hashfiles",       no_argument,            NULL,           'h' },
+    { "create-parents",         no_argument,            NULL,           'p' },
+    { "verbose",                no_argument,            NULL,           'v' },
+    { "help",                   no_argument,            NULL,           '?' },
     { NULL,                     0,                      NULL,           0 }
 };
 
