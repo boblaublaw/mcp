@@ -20,11 +20,24 @@ pthread_attr_t      attr;
 
 void usage(long retval)
 {
-    logInfo("usage()\n");
+    logInfo("mcp usage:\n");
+    logInfo("\n");
+    logInfo("mcp <options> Source Destination1 [ DestinationN ] ...\n");
+    logInfo("\tThe Source can be a file or directory.\n");
+    logInfo("\tIf the Source is a file, the Destinations may also be files or directories.\n");
+    logInfo("\tIf the Source is a directory, the Destinations must be directories.\n");
+    logInfo("\n");
+    logInfo("options:\n");
     logInfo("\t-f: force overwrite destination file\n");
     logInfo("\t-h: create hash files for every source file\n");
     logInfo("\t-p: create parent directories where needed\n");
     logInfo("\t-v: increase verbosity (vv, vvv, etc)\n");
+    logInfo("\n");
+    logInfo("Examples:\n");
+    logInfo("\tmcp sourceFile DestFile1 DestFile2\n");
+    logInfo("\tmcp sourceFile DestFile1 DestFile2\n");
+    logInfo("\tmcp sourceFile DestFile1 DestFile2\n");
+    logInfo("\n");
     exit(retval);
 }
 
