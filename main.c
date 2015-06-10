@@ -91,7 +91,7 @@ int main(int argc, char **argv)
     }
     else if (sb.st_mode & S_IFDIR) {
         logDebug("source is a directory: %s\n", source);
-        copyDirectory(source, argc, argv);
+        retval = copyDirectory(source, argc, argv);
     }
     else {
         logFatal("source is an unknown type: %s mode %x\n", 

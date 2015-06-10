@@ -59,8 +59,9 @@ int copyDirectory(const char *source, int argc, char **argv)
     for (i=0; i<MCP_FILE_READERS; i++) {
         if (-1 == pthread_join(d.t[i], &thread_status)) {
             logFatal("failed to join file reader:%s\n", strerror(errno));
-            retval |= -1;
+            retval = -1;
         }
+        retval |= (long)thread_status;
     }
 
     return retval;
