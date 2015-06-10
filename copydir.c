@@ -1,4 +1,5 @@
 #include <assert.h>
+#include <ftw.h>            // ntfw()
 #include <stdio.h>          // strerror()
 #include <string.h>         // strerror(), bzero()
 #include <errno.h>          // errno
@@ -7,6 +8,7 @@
 
 // globals
 extern pthread_attr_t      attr;
+dir_mgr_t   d;
 
 void *directoryWorker(void *arg)
 {
@@ -31,12 +33,22 @@ void *directoryWorker(void *arg)
     pthread_exit((void*) retval);
 }
 
+int wrapper(const char * fpath, const struct stat *sb, int typeflag, struct FTW *ftwbuf) 
+{
+    if (typeflag != FTW_F)
+        return 0;
+    //printf("File base %d level %d: %s\n", ftwbuf->base, ftwbuf->level, fpath);
+    queue_add(&d.q, fpath);
+    return(0);
+} 
+
 int copyDirectory(const char *source, int argc, char **argv)
 {
     int         i;
-    dir_mgr_t   d;
     long        retval=0;
     void        *thread_status;
+    int         fd_limit=20;
+    int         flags=0;
 
     queue_init(&d.q);
     d.argc=argc;
@@ -51,8 +63,8 @@ int copyDirectory(const char *source, int argc, char **argv)
     }
 
     // iterate over dir structure adding elements to q
-    queue_add(&d.q, "poop");
-    queue_add(&d.q, "pee");
+    nftw(source, wrapper, fd_limit, flags);
+
     // mark the queue as read only now
     queue_drain(&d.q);
 

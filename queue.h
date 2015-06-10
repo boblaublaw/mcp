@@ -15,5 +15,5 @@ typedef struct queue
 
 void queue_drain(queue_t *q);
 void queue_init(queue_t *q);
-void queue_add(queue_t *q, char *value);
+void queue_add(queue_t *q, const char *value);
 int queue_get(queue_t *q, char **val_r);

@@ -37,7 +37,7 @@ void queue_init(queue_t *q)
     pthread_cond_init(&q->cond, NULL);
 }
 
-void queue_add(queue_t *q, char *value)
+void queue_add(queue_t *q, const char *value)
 {
     assert(q);
     assert(value);
