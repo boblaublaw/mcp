@@ -10,7 +10,6 @@
 #include <libgen.h>     // dirname()
 #include "mcp.h"
 
-extern int exitFlag;
 extern int createParents;
 
 int _mkdir(const char *dir) {
@@ -86,16 +85,16 @@ int writeFromBuf(mcp_writer_t *self, int bufId)
     int retval;
     logDebug("%s about to wait for BUF %d barrier\n", self->desc, bufId);
 
-    if (-1 == pthread_barrier_waitcancel(&self->mr->barrier[bufId], &exitFlag, self->desc)) {
+    if (-1 == pthread_barrier_waitcancel(&self->mr->barrier[bufId], &self->mr->exitFlag, self->desc)) {
         logError("%s: something went horribly wrong with pthread_barrier_waitcancel\n", 
             self->desc);
-        exitFlag = 1;
+        self->mr->exitFlag = 1;
         return(-1);
     }
 
     logDebug("%s done waiting for BUF %d barrier\n", self->desc, bufId);
 
-    if (exitFlag) {
+    if (self->mr->exitFlag) {
         logDebug("%s told to shut down\n", self->desc);
         return(0);
     }
@@ -107,7 +106,7 @@ int writeFromBuf(mcp_writer_t *self, int bufId)
     }
 
     if (self->mr->bufBytes[bufId] != fwrite(self->mr->buf[bufId], 1, self->mr->bufBytes[bufId], self->stream)) {
-        exitFlag = 1;
+        self->mr->exitFlag = 1;
         logError("%s failed to write %ld bytes from BUF %d\n", 
             self->desc, self->mr->bufBytes[bufId], bufId);
         return(-1);
@@ -145,13 +144,13 @@ evaluate_destination:
             }
             retval = -1;
             logError("Could not create a new destination filename\n");
-            exitFlag = 1;
+            self->mr->exitFlag = 1;
             goto thread_exit;
         }
         if (!self->forceOverwrite) {
             retval=-1;
             logError("File exists (-f to force): %s\n", self->filename);
-            exitFlag = 1;
+            self->mr->exitFlag = 1;
             goto thread_exit;
         }
         logDebug("%s overwriting destination file %s\n", self->desc, self->filename);
@@ -169,7 +168,7 @@ evaluate_destination:
         if (NULL == parentDir) {
             retval = -1;
             logError("Failed to determine dirname for %s: %s\n", self->filename, strerror(errno));
-            exitFlag = 1;
+            self->mr->exitFlag = 1;
             goto thread_exit;
         }
 
@@ -179,7 +178,7 @@ evaluate_destination:
                 if (-1 == (retval = _mkdir(parentDir))) {
                     logError("Failed to create parent directory %s: %s\n", 
                         parentDir, strerror(errno));
-                    exitFlag = 1;
+                    self->mr->exitFlag = 1;
                     goto thread_exit;
                 }
                 if (exists(parentDir)) {
@@ -189,7 +188,7 @@ evaluate_destination:
                     retval = -1;
                     logError("failed to find new parent directory %s: %s\n", 
                         parentDir, strerror(errno));
-                    exitFlag = 1;
+                    self->mr->exitFlag = 1;
                     goto thread_exit;
                 }
             }
@@ -197,7 +196,7 @@ evaluate_destination:
                 retval = -1;
                 logError("destination directory %s does not exist, -p to create parents\n",
                     parentDir);
-                exitFlag = 1;
+                self->mr->exitFlag = 1;
                 goto thread_exit;
             }
         }
@@ -209,7 +208,7 @@ evaluate_destination:
         logError("could not open %s for writing: %s\n", 
             self->filename, strerror(errno));
         retval = -1;
-        exitFlag = 1;
+        self->mr->exitFlag = 1;
         goto thread_exit;
     }
 

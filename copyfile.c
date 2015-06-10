@@ -4,8 +4,7 @@
 
 mcp_reader_t        fileReader;
 
-extern int  exitFlag,
-            hashFiles,
+extern int  hashFiles,
             forceOverwrite;
 
 extern pthread_attr_t      attr;
@@ -71,7 +70,7 @@ int copyFile(const char *source, int argc, char **argv)
         retval);
 
     // if hash files were requested, write them now
-    if (hashFiles && !exitFlag) {
+    if (hashFiles && !fileReader.exitFlag) {
         for (writerIndex=0; writerIndex < numWriters; writerIndex++) {
             mcp_writer_t *mw = &writers[writerIndex];
             writeHashFile(mw->filename, mw->mr->md5sum);

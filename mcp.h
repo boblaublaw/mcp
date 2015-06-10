@@ -11,6 +11,7 @@
 #endif
 #include "pthread_barrier_ext.h"
 
+#define MCP_FILE_READERS        32
 #define PAGESIZE                4096 
 #define BUFSIZE                 64 * PAGESIZE
 #define NUMBUF                  2
@@ -27,6 +28,7 @@ typedef struct mcp_reader_t {
 
     // reader thread
     pthread_t           thread;
+    int                 exitFlag;
 
     // read buffer and associated thread vars
     unsigned char       buf[NUMBUF][BUFSIZE];

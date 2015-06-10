@@ -12,8 +12,7 @@ static struct option longopts[] = {
 };
 
 // global vars
-int exitFlag,
-    hashFiles, 
+int hashFiles, 
     createParents,
     forceOverwrite;
 
@@ -43,7 +42,6 @@ int main(int argc, char **argv)
     streamCopy=0;
     hashFiles = 0; 
     createParents = 0;
-    exitFlag = 0;
     retval = 0;
 
     logInit(stderr);

@@ -8,8 +8,6 @@
 
 #include "mcp.h"
 
-extern int exitFlag;
-
 int initReader(mcp_reader_t *mr, const char *filename, int writerCount, int hashFiles)
 {
     assert(filename);
@@ -63,7 +61,7 @@ int readIntoBuf(mcp_reader_t *mr, int bufId)
 
     if (-1 == (mr->bufBytes[bufId]  = fread(mr->buf[bufId], 1, BUFSIZE, mr->source))) {
         logError("failed to read from %s: %s\n", mr->filename, strerror(errno));
-        exitFlag = 1;
+        mr->exitFlag = 1;
         return -1;
     }
 
@@ -73,15 +71,15 @@ int readIntoBuf(mcp_reader_t *mr, int bufId)
     logDebug("reader read %ld bytes into BUF %d\n", mr->bufBytes[bufId], bufId);
     logDebug("reader about to wait for BUF %d barrier\n", bufId);
 
-    if (-1 == pthread_barrier_waitcancel(&mr->barrier[bufId], &exitFlag, "reader")) {
+    if (-1 == pthread_barrier_waitcancel(&mr->barrier[bufId], &mr->exitFlag, "reader")) {
         logError("reader: Something went horribly wrong with pthread_barrier_waitcancel\n");
-        exitFlag=1;
+        mr->exitFlag=1;
         return -1;
     }
 
     logDebug("reader done waiting for BUF %d barrier\n", bufId);
         
-    if (exitFlag) {
+    if (mr->exitFlag) {
         logDebug("reader told to shut down by another thread\n");
         return 0;
     }
@@ -118,7 +116,7 @@ pthread_exit:
     }
     logDebug("reader closed file\n");
 
-    if (!exitFlag && mr->hashFiles) {
+    if (!mr->exitFlag && mr->hashFiles) {
         logDebug("reader hashing file\n");
         int i;
         CC_MD5_Final(mr->md5sum, &mr->md5state);
