@@ -1,18 +1,30 @@
 #!/bin/sh
 
-srcdir=mcp
+srcdir=$1
+shift
 
-rm -rf dst1dir dst2dir dst3dir
+mkdir -v $@
+finaldstdir=$1
+shift
 
-mkdir dst1dir dst2dir dst3dir
+fifodir="/tmp/mcp/$$"
+mkdir -p $fifodir
 
-mkfifo tmp1
-mkfifo tmp2
+while [ ! -z $1 ]; do
+    fifo=$fifodir/$1
+    mkfifo $fifo
+    tar -xf $fifo -C $1 &
+    fifos="$fifo $fifos"
+    shift
+done
 
-tar -xf tmp1 -C dst1dir &
-tar -xf tmp2 -C dst2dir &
+cmdstr="tar -C $srcdir -cf - . "
+for fifo in $fifos; do
+    cmdstr="$cmdstr | tee $fifo "
+done
+cmdstr="$cmdstr | tar xf - -C $finaldstdir"
 
-tar -C $srcdir -cf - . | tee tmp1 | tee tmp2 | tar xf - -C dst3dir
-fg;fg
-rm tmp1 tmp2
+eval $cmdstr
+
+rm -rf $fifodir
 
