@@ -3,7 +3,7 @@
 srcdir=$1
 shift
 
-mkdir -v $@
+mkdir -p $@
 finaldstdir=$1
 shift
 
